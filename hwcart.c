@@ -446,7 +446,7 @@ int hwcart_print_rank_topology(MPI_Comm comm, int nlevels, int *domain, int *top
     printf("Rank to node mapping\n");
     printf("\n");
 
-    for(ii=0; ii<nlevels-1; ii++){
+    for(ii=0; ii<nlevels; ii++){
       hwcart_split_type_to_name(domain[ii], split_name);
       printf("\n");
       printf("Level %d %s\n", ii, split_name);
@@ -539,20 +539,8 @@ void hwcart_split_type_to_name(int split_type, char *name) {
   case (HWCART_MD_NUMA):
     sprintf(name, "HWCART_MD_NUMA");
     break;
-  case (HWCART_MD_BOARD):
-    sprintf(name, "HWCART_MD_BOARD");
-    break;
-  case (HWCART_MD_HOST):
-    sprintf(name, "HWCART_MD_HOST");
-    break;
   case (HWCART_MD_NODE):
     sprintf(name, "HWCART_MD_NODE");
-    break;
-  case (HWCART_MD_CU):
-    sprintf(name, "HWCART_MD_CU");
-    break;
-  case (HWCART_MD_CLUSTER):
-    sprintf(name, "HWCART_MD_CLUSTER");
     break;
   }
 }
@@ -577,16 +565,8 @@ int hwcart_ompi_split_type(int split_type)
     return OMPI_COMM_TYPE_SOCKET;
   case (HWCART_MD_NUMA):
     return OMPI_COMM_TYPE_NUMA;
-  case (HWCART_MD_BOARD):
-    return OMPI_COMM_TYPE_BOARD;
-  case (HWCART_MD_HOST):
-    return OMPI_COMM_TYPE_HOST;
   case (HWCART_MD_NODE):
     return OMPI_COMM_TYPE_NODE;
-  case (HWCART_MD_CU):
-    return OMPI_COMM_TYPE_CU;
-  case (HWCART_MD_CLUSTER):
-    return OMPI_COMM_TYPE_CLUSTER;
   default:
     return -1;
   }

@@ -2,27 +2,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NSPLITS 7
+#define NSPLITS 5
 int main(int argc, char *argv[])
 {
     int domain[NSPLITS] = {
-                               HWCART_MD_HWTHREAD,
                                HWCART_MD_CORE,
                                HWCART_MD_L3CACHE,
                                HWCART_MD_NUMA,
                                HWCART_MD_SOCKET,
-                               HWCART_MD_NODE,
-                               HWCART_MD_CLUSTER
+                               HWCART_MD_NODE
     };
 
     int topo[3*NSPLITS] = {
-                           2, 1, 1, // HT
-                           1, 2, 2, // core
-                           1, 1, 1, // core
-                           1, 1, 1, // numadims
-                           1, 1, 1, // socketdims
-                           1, 1, 1, // nodedims
-                           1, 1, 1  // clusterdims
+                           2, 1, 1, // core grid
+                           2, 2, 1, // l3cache grid
+                           1, 2, 2, // numa grid
+                           1, 1, 2, // socket grid
+                           2, 1, 1  // compute node grid
     };
 
     int ierr, comm_rank, comm_size, new_rank;
