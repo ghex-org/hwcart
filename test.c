@@ -2,10 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NSPLITS 5
+#define NSPLITS 7
 int main(int argc, char *argv[])
 {
     int domain[NSPLITS] = {
+                               HWCART_MD_HWTHREAD,
+                               HWCART_MD_CORE,
                                HWCART_MD_L3CACHE,
                                HWCART_MD_NUMA,
                                HWCART_MD_SOCKET,
@@ -14,10 +16,12 @@ int main(int argc, char *argv[])
     };
 
     int topo[3*NSPLITS] = {
-                           4, 1, 1, // l3dims
-                           2, 1, 2, // numadims
-                           1, 2, 2, // socketdims
-                           1, 2, 1, // nodedims
+                           2, 1, 1, // HT
+                           1, 2, 2, // core
+                           1, 1, 1, // core
+                           1, 1, 1, // numadims
+                           1, 1, 1, // socketdims
+                           1, 1, 1, // nodedims
                            1, 1, 1  // clusterdims
     };
 
@@ -33,9 +37,10 @@ int main(int argc, char *argv[])
     ierr = MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
     ierr = MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     
-    hwcart_create(MPI_COMM_WORLD, NSPLITS, domain, topo, order, &hwcart_comm);
-    hwcart_print_rank_topology(hwcart_comm, NSPLITS, domain, topo, order);
-    hwcart_free(&hwcart_comm);
+    if(!hwcart_create(MPI_COMM_WORLD, NSPLITS, domain, topo, order, &hwcart_comm)){
+        hwcart_print_rank_topology(hwcart_comm, NSPLITS, domain, topo, order);
+        hwcart_free(&hwcart_comm);
+    }
 
     MPI_Finalize();
 }

@@ -38,9 +38,9 @@ int hwcart_topology(MPI_Comm comm, int nsplits, int *domain, int *topo, int *lev
         return 0;
     }
 
-    split_type = hwcart_ompi_split_type(domain[level-1]);
+    split_type = hwcart_ompi_split_type(domain[level]);
     if(split_type < 0){
-      fprintf(stderr, "unknown memory domain %d, level %d\n", domain[level-1], level);
+      fprintf(stderr, "unknown memory domain %d, level %d\n", domain[level], level);
       return -1;
     }
 
@@ -78,7 +78,7 @@ int hwcart_topology(MPI_Comm comm, int nsplits, int *domain, int *topo, int *lev
         // verify topology validity on this level
         if (master_size != topo[level*3+0]*topo[level*3+1]*topo[level*3+2]){
             fprintf(stderr, "ERROR (3): wrong topology on level %d: expected %d domains (config), but found %d (hardware)\n",
-                    level, topo[level*3+0]*topo[level*3+1]*topo[level*3+2], comm_size);
+                    level, topo[level*3+0]*topo[level*3+1]*topo[level*3+2], master_size);
             return -1;
         }
 
