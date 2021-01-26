@@ -1,4 +1,9 @@
 #include "hwcart.h"
+// this conditional does not work since the mpi wrapper compiler does not export the macros :(
+// for now: assume we use gcc with glibc
+// #if defined(__GNU_LIBRARY__) || defined(__GLIBC__)
+#define _GNU_SOURCE
+//#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sched.h>
@@ -482,6 +487,7 @@ int hwcart_print_rank_topology(MPI_Comm comm, int nlevels, int *domain, int *top
 
   free(level_id);
   free(sbuff);
+  return 0;
 }
 
 
