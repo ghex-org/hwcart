@@ -14,11 +14,11 @@ int main(int argc, char *argv[])
     };
 
     int topo[3*NSPLITS] = {
-                           2, 1, 1, // core grid
-                           2, 2, 1, // l3cache grid
-                           1, 2, 2, // numa grid
-                           1, 1, 2, // socket grid
-                           2, 1, 1  // compute node grid
+                           2, 2, 2, // core grid
+                           1, 1, 1, // l3cache grid
+                           1, 1, 1, // numa grid
+                           1, 1, 1, // socket grid
+                           1, 1, 1  // compute node grid
     };
 
     int ierr, comm_rank, comm_size, new_rank;

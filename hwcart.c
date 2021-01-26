@@ -1,9 +1,4 @@
 #include "hwcart.h"
-// this conditional does not work since the mpi wrapper compiler does not export the macros :(
-// for now: assume we use gcc with glibc
-// #if defined(__GNU_LIBRARY__) || defined(__GLIBC__)
-#define _GNU_SOURCE
-//#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sched.h>
@@ -88,8 +83,8 @@ int hwcart_topology(MPI_Comm comm, int nsplits, int *domain, int *topo, int *lev
         }
 
         // comm buffers to establish unique node id's for each master
-        sbuff = (int*)calloc(sizeof(int),comm_size);
-        rbuff = (int*)calloc(sizeof(int),comm_size);
+        sbuff = (int*)calloc(comm_size,sizeof(int));
+        rbuff = (int*)calloc(comm_size,sizeof(int));
 
         // find node rank based on unique node id from above
         for(int ii=0; ii<comm_size; ii++) sbuff[ii] = nodeid;
@@ -135,8 +130,8 @@ int hwcart_remap_ranks(MPI_Comm comm, int nsplits, int *domain, int *topo, int *
 
   ierr = MPI_Comm_rank(comm, &comm_rank);
 
-  cartXYZ = calloc(sizeof(int), 3*nsplits);
-  dims    = calloc(sizeof(int), 3*nsplits);
+  cartXYZ = calloc(3*nsplits, sizeof(int));
+  dims    = calloc(3*nsplits, sizeof(int));
 
   // compute rank cartesian coordinates for each topological level
   for(ii=0; ii<nsplits; ii++){
@@ -186,7 +181,7 @@ int  hwcart_create(MPI_Comm mpi_comm, int nsplits, int *domain, int *topo, int o
   int retval, cleanup = 0;
   int *level_rank;
 
-  level_rank = calloc(sizeof(int), nsplits);
+  level_rank = calloc(nsplits, sizeof(int));
   retval = hwcart_topology(mpi_comm, nsplits, domain, topo, level_rank, nsplits-1);
   if(retval<0) {
     free(level_rank);
@@ -340,8 +335,8 @@ int ghex_get_noderank(MPI_Comm comm, int split_type, int *noderank_out)
   ierr = MPI_Comm_size(comm, &size);
 
   // communication buffers
-  sbuff = calloc(sizeof(int), size);
-  rbuff = calloc(sizeof(int), size);
+  sbuff = calloc(size, sizeof(int));
+  rbuff = calloc(size, sizeof(int));
 
   //check for OpenMPI to use fine-grain hwloc domains
   ierr = MPI_Get_library_version(version, &resultlen);
@@ -404,19 +399,19 @@ int hwcart_print_rank_topology(MPI_Comm comm, int nlevels, int *domain, int *top
     gdim[2] *= topo[ii*3+2];
   }
 
-  level_id = calloc(sizeof(int), nlevels);
+  level_id = calloc(nlevels, sizeof(int));
   for(ii=0; ii<nlevels; ii++){
     ghex_get_noderank(comm, domain[ii], level_id+ii);
   }
 
-  sbuff = calloc(sizeof(int), nlevels+3);
+  sbuff = calloc(nlevels+3, sizeof(int));
 
   // obtain all values at master
   ierr = MPI_Comm_rank(MPI_COMM_WORLD, &orank);
   ierr = MPI_Comm_rank(comm, &comm_rank);
   ierr = MPI_Comm_size(comm, &comm_size);
 
-  buff = calloc(sizeof(int), (nlevels+3)*comm_size);
+  buff = calloc((nlevels+3)*comm_size, sizeof(int));
   sbuff[0] = comm_rank;
   sbuff[1] = orank;
   sbuff[2] = sched_getcpu(); // -D_GNU_SOURCE
