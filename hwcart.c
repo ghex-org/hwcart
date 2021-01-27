@@ -8,25 +8,47 @@
 
 #ifdef USE_HWLOC
 #include <hwloc.h>
-int hwcart_topology(MPI_Comm comm, int nsplits, int *domain, int *topo, int *level_rank_out, int level)
+
+
+int hwcart_init(hwcart_topo_t *hwtopo_out)
 {
-    int *sbuff, *rbuff;
-    int ierr, comm_rank, comm_size, nodeid, noderank, color, ii, split_type;
-    MPI_Comm shmem_comm, split_comm;
-    int shmem_rank, shmem_size, split_rank, split_size;
+    hwloc_topology_t *phwloctopo;
+    int	res;
+    phwloctopo = malloc(sizeof(hwloc_topology_t));
+    res = hwloc_topology_init(phwloctopo);
+    if(res) return res;
+    res = hwloc_topology_load(*phwloctopo);
+    if(res) return res;
+    hwtopo_out->ptopo = (void*)phwloctopo;
+    return 0;
+}
+
+
+int  hwcart_free_hwtopo(hwcart_topo_t *hwtopo)
+{
+    hwloc_topology_destroy (*((hwloc_topology_t*)hwtopo->ptopo));
+    free(hwtopo->ptopo);
+    hwtopo->ptopo = NULL;
+    return 0;
+}
+
+
+int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nsplits, int *domain, int *topo, int *level_rank_out, int level)
+{
+    int comm_rank, comm_size, color, split_type;
+    MPI_Comm shmem_comm;
+    int shmem_rank, shmem_size;
     MPI_Comm master_comm;
-    int master_size;
-    int retval = 0;
     int nlevel_nodes;
     for(int i=0; i<nsplits; i++) level_rank_out[i] = -1;
 
+    // we need a copy of the topology: we modify it
     hwloc_topology_t hwloctopo;
-    int res = hwloc_topology_init (&hwloctopo);
-    res = hwloc_topology_load(hwloctopo);
+    hwloc_topology_dup(&hwloctopo, *((hwloc_topology_t*)hwtopo.ptopo));
 
     // parent communicator
-    ierr = MPI_Comm_rank(comm, &comm_rank);
-    ierr = MPI_Comm_size(comm, &comm_size);
+    HWCART_MPI_CALL( MPI_Comm_rank(comm, &comm_rank) );
+    HWCART_MPI_CALL( MPI_Comm_size(comm, &comm_size) );
 
     if(domain[level] != HWCART_MD_NODE){
         fprintf(stderr, "top-1 memory domain must be HWCART_MD_NODE\n");
@@ -35,29 +57,29 @@ int hwcart_topology(MPI_Comm comm, int nsplits, int *domain, int *topo, int *lev
     }
 
     // create communicator for this topology level
-    ierr = MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &shmem_comm);
-    ierr = MPI_Comm_rank(shmem_comm, &shmem_rank);
-    ierr = MPI_Comm_size(shmem_comm, &shmem_size);
+    HWCART_MPI_CALL( MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &shmem_comm) );
+    HWCART_MPI_CALL( MPI_Comm_rank(shmem_comm, &shmem_rank) );
+    HWCART_MPI_CALL( MPI_Comm_size(shmem_comm, &shmem_size) );
 
     // make a master-rank communicator: masters from each split comm join
     color = 0;
     if (shmem_rank != 0){
 
         // non-masters
-        ierr = MPI_Comm_split(comm, color, 0, &master_comm);
+        HWCART_MPI_CALL( MPI_Comm_split(comm, color, 0, &master_comm) );
     } else {
 
         // masters
         color = 1;
-        ierr = MPI_Comm_split(comm, color, 0, &master_comm);
-        ierr = MPI_Comm_rank(master_comm, level_rank_out+level);
+        HWCART_MPI_CALL( MPI_Comm_split(comm, color, 0, &master_comm) );
+        HWCART_MPI_CALL( MPI_Comm_rank(master_comm, level_rank_out+level) );
     }
     
     // cleanup
-    ierr = MPI_Comm_disconnect(&master_comm);
+    HWCART_MPI_CALL( MPI_Comm_disconnect(&master_comm) );
     
     // distribute the node id to all split ranks
-    ierr = MPI_Bcast(level_rank_out+level, 1, MPI_INT, 0, shmem_comm);
+    HWCART_MPI_CALL( MPI_Bcast(level_rank_out+level, 1, MPI_INT, 0, shmem_comm) );
 
     hwloc_bitmap_t m_cpuset = hwloc_bitmap_alloc();
     hwloc_obj_t obj;
@@ -84,7 +106,7 @@ int hwcart_topology(MPI_Comm comm, int nsplits, int *domain, int *topo, int *lev
         }
 
         // find number of nodes on this level
-        ierr = MPI_Allreduce(level_rank_out+i, &nlevel_nodes, 1, MPI_INT, MPI_MAX, shmem_comm);
+        HWCART_MPI_CALL( MPI_Allreduce(level_rank_out+i, &nlevel_nodes, 1, MPI_INT, MPI_MAX, shmem_comm) );
         nlevel_nodes++;
 
         if (nlevel_nodes != topo[i*3+0]*topo[i*3+1]*topo[i*3+2]){
@@ -120,33 +142,32 @@ int hwcart_topology(MPI_Comm comm, int nsplits, int *domain, int *topo, int *lev
 }
 
 // obtain level node ID of the calling rank
-int hwcart_get_noderank(MPI_Comm comm, int split_type, int *noderank_out)
+int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, int split_type, int *noderank_out)
 {
     int *sbuff, *rbuff;
-    int nodeid, rank, size, ierr, ii;
+    int nodeid, rank, size, ii;
     MPI_Comm shmem_comm;
-    int resultlen;
 
     if(split_type == HWCART_MD_NODE){
     
         // old rank
-        ierr = MPI_Comm_rank(comm, &rank);
-        ierr = MPI_Comm_size(comm, &size);
+        HWCART_MPI_CALL( MPI_Comm_rank(comm, &rank) );
+        HWCART_MPI_CALL( MPI_Comm_size(comm, &size) );
 
         sbuff = calloc(sizeof(int), size);
         rbuff = calloc(sizeof(int), size);
 
         // create local communicator
-        ierr = MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &shmem_comm);
+        HWCART_MPI_CALL( MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &shmem_comm) );
 
         // figure out unique compute node id = max rank id on each compute node
         sbuff[0] = rank+1;
-        ierr = MPI_Allreduce(sbuff, rbuff, 1, MPI_INT, MPI_MAX, shmem_comm);
+        HWCART_MPI_CALL( MPI_Allreduce(sbuff, rbuff, 1, MPI_INT, MPI_MAX, shmem_comm) );
         nodeid = rbuff[0];
 
         // find node rank based on unique node id from above
         for(ii=0; ii<size; ii++) sbuff[ii] = nodeid;
-        ierr = MPI_Alltoall(sbuff, 1, MPI_INT, rbuff, 1, MPI_INT, comm);
+        HWCART_MPI_CALL( MPI_Alltoall(sbuff, 1, MPI_INT, rbuff, 1, MPI_INT, comm) );
 
         // mark each unique node id with a 1
         for(ii=0; ii<size; ii++) sbuff[ii] = 0;
@@ -161,13 +182,12 @@ int hwcart_get_noderank(MPI_Comm comm, int split_type, int *noderank_out)
         // cleanup
         free(sbuff);
         free(rbuff);
-        ierr = MPI_Comm_disconnect(&shmem_comm);
+        HWCART_MPI_CALL( MPI_Comm_disconnect(&shmem_comm) );
         return 0;
     }
   
-    hwloc_topology_t hwloctopo;
-    int res = hwloc_topology_init (&hwloctopo);
-    res = hwloc_topology_load(hwloctopo);
+    hwloc_topology_t *phwloctopo;
+    phwloctopo = (hwloc_topology_t*)hwtopo.ptopo;
   
     hwloc_bitmap_t m_cpuset = hwloc_bitmap_alloc();
     hwloc_obj_t obj;
@@ -175,23 +195,24 @@ int hwcart_get_noderank(MPI_Comm comm, int split_type, int *noderank_out)
     if(hwloc_split_type < 0){
         fprintf(stderr, "unknown memory domain %d\n", split_type);
         hwloc_bitmap_free(m_cpuset);
-        hwloc_topology_destroy (hwloctopo);
+        hwloc_topology_destroy (*phwloctopo);
         return -1;
     }
 
-    int n = hwloc_get_nbobjs_by_type(hwloctopo, hwloc_split_type);
+    int n = hwloc_get_nbobjs_by_type(*phwloctopo, hwloc_split_type);
     for(int j=0; j<n; j++){
         // figure out on which object we reside
-        obj = hwloc_get_obj_by_type (hwloctopo, hwloc_split_type, j);
-        hwloc_get_cpubind(hwloctopo, m_cpuset, 0);
+        obj = hwloc_get_obj_by_type (*phwloctopo, hwloc_split_type, j);
+        hwloc_get_cpubind(*phwloctopo, m_cpuset, 0);
         if(hwloc_bitmap_isincluded (m_cpuset, obj->cpuset)){
             // include myself on this node
             *noderank_out = j;
             break;
         }
     }
+
     hwloc_bitmap_free(m_cpuset);
-    hwloc_topology_destroy (hwloctopo);
+    return 0;
 }
 
 int hwcart_split_type(int split_type)

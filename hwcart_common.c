@@ -10,11 +10,11 @@
 int hwcart_remap_ranks(MPI_Comm comm, int nsplits, int *domain, int *topo, int *level_rank, int order, MPI_Comm *hwcart_comm_out)
 {
     int topo_coord[3] = {0}, gdim[3] = {1,1,1}, periodic[3] = {0};
-    int ierr, ii, comm_rank, newrank;
+    int ii, comm_rank, newrank;
     int *cartXYZ;
     int *dims;
 
-    ierr = MPI_Comm_rank(comm, &comm_rank);
+    HWCART_MPI_CALL( MPI_Comm_rank(comm, &comm_rank) );
 
     cartXYZ = calloc(sizeof(int), 3*nsplits);
     dims    = calloc(sizeof(int), 3*nsplits);
@@ -52,7 +52,7 @@ int hwcart_remap_ranks(MPI_Comm comm, int nsplits, int *domain, int *topo, int *
     hwcart_coord2rank(comm, gdim, periodic, topo_coord, order, &newrank);
 
     // create the new communicator with remapped ranks
-    ierr = MPI_Comm_split(comm, 0, newrank, hwcart_comm_out);
+    HWCART_MPI_CALL( MPI_Comm_split(comm, 0, newrank, hwcart_comm_out) );
 
     // cleanup
     free(dims);
@@ -62,13 +62,13 @@ int hwcart_remap_ranks(MPI_Comm comm, int nsplits, int *domain, int *topo, int *
 }
 
 
-int  hwcart_create(MPI_Comm mpi_comm, int nsplits, int *domain, int *topo, int order, MPI_Comm *hwcart_comm_out)
+int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nsplits, int *domain, int *topo, int order, MPI_Comm *hwcart_comm_out)
 {
-    int retval, cleanup = 0;
+    int retval;
     int *level_rank;
 
     level_rank = calloc(sizeof(int), nsplits);
-    retval = hwcart_topology(mpi_comm, nsplits, domain, topo, level_rank, nsplits-1);
+    retval = hwcart_topology(hwtopo, mpi_comm, nsplits, domain, topo, level_rank, nsplits-1);
     if(retval<0) {
         free(level_rank);
         return retval;
@@ -90,21 +90,23 @@ int  hwcart_create(MPI_Comm mpi_comm, int nsplits, int *domain, int *topo, int o
 }
 
 
-int hwcart_free(MPI_Comm *hwcart_comm)
+int hwcart_free(hwcart_topo_t *hwtopo, MPI_Comm *hwcart_comm)
 {
-    return MPI_Comm_free(hwcart_comm);
+    int res = hwcart_free_hwtopo(hwtopo);
+    HWCART_MPI_CALL( MPI_Comm_free(hwcart_comm) );
+    return res;
 }
 
 
 int  hwcart_rank2coord(MPI_Comm comm, int *dims, int rank, int order, int *coord)
 {
-    int topo, ierr, tmp;
+    int topo, tmp;
 
     // check if this is a cartesian communicator
     if (comm == MPI_COMM_NULL) {
         topo = -1;
     } else {
-        ierr =  MPI_Topo_test(comm, &topo);
+        HWCART_MPI_CALL( MPI_Topo_test(comm, &topo) );
     }
 
     if (topo!=MPI_CART){
@@ -144,7 +146,7 @@ int  hwcart_rank2coord(MPI_Comm comm, int *dims, int rank, int order, int *coord
             return -1;
         }
     } else {
-        ierr = MPI_Cart_coords(comm, rank, 3, coord);
+        HWCART_MPI_CALL( MPI_Cart_coords(comm, rank, 3, coord) );
     }
     return 0;
 }
@@ -152,7 +154,7 @@ int  hwcart_rank2coord(MPI_Comm comm, int *dims, int rank, int order, int *coord
 
 int  hwcart_coord2rank(MPI_Comm comm, int *dims, int *periodic, int *coord, int order, int *rank_out)
 {
-    int tcoord[3], ii, topo, ierr;
+    int tcoord[3], ii, topo;
 
     // apply periodicity inside a temporary array
     tcoord[0] = coord[0];
@@ -182,7 +184,7 @@ int  hwcart_coord2rank(MPI_Comm comm, int *dims, int *periodic, int *coord, int 
     if (comm == MPI_COMM_NULL){
         topo = -1;
     } else {
-        ierr =  MPI_Topo_test(comm, &topo);
+        HWCART_MPI_CALL( MPI_Topo_test(comm, &topo) );
     }
 
     if (topo!=MPI_CART) {
@@ -211,16 +213,16 @@ int  hwcart_coord2rank(MPI_Comm comm, int *dims, int *periodic, int *coord, int 
             return -1;
         }
     } else {
-        ierr = MPI_Cart_rank(comm, tcoord, rank_out);
+        HWCART_MPI_CALL( MPI_Cart_rank(comm, tcoord, rank_out) );
     }
     return 0;
 }
 
 
-int hwcart_print_rank_topology(MPI_Comm comm, int nlevels, int *domain, int *topo, int order)
+int hwcart_print_rank_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, int *domain, int *topo, int order)
 {
     int *buff;
-    int ierr, ii, li, gdim[3] = {1,1,1};
+    int ii, gdim[3] = {1,1,1};
     int comm_rank, comm_size, orank, ncpus;
     int *sbuff;
     int *level_id;
@@ -235,15 +237,15 @@ int hwcart_print_rank_topology(MPI_Comm comm, int nlevels, int *domain, int *top
 
     level_id = calloc(sizeof(int), nlevels);
     for(ii=0; ii<nlevels-1; ii++){
-        hwcart_get_noderank(comm, domain[ii], level_id+ii);
+        hwcart_get_noderank(hwtopo, comm, domain[ii], level_id+ii);
     }
 
     sbuff = calloc(sizeof(int), nlevels+3);
 
     // obtain all values at master
-    ierr = MPI_Comm_rank(MPI_COMM_WORLD, &orank);
-    ierr = MPI_Comm_rank(comm, &comm_rank);
-    ierr = MPI_Comm_size(comm, &comm_size);
+    HWCART_MPI_CALL( MPI_Comm_rank(MPI_COMM_WORLD, &orank) );
+    HWCART_MPI_CALL( MPI_Comm_rank(comm, &comm_rank) );
+    HWCART_MPI_CALL( MPI_Comm_size(comm, &comm_size) );
 
     buff = calloc(sizeof(int), (nlevels+3)*comm_size);
     sbuff[0] = comm_rank;
@@ -254,7 +256,7 @@ int hwcart_print_rank_topology(MPI_Comm comm, int nlevels, int *domain, int *top
     // assuming HT is enabled, use the lower core ID
     ncpus = get_nprocs_conf()/2;
     if (sbuff[2] >= ncpus) sbuff[2] = sbuff[2] - ncpus;
-    ierr = MPI_Gather(sbuff, nlevels+3, MPI_INT, buff, nlevels+3, MPI_INT, 0, comm);
+    HWCART_MPI_CALL( MPI_Gather(sbuff, nlevels+3, MPI_INT, buff, nlevels+3, MPI_INT, 0, comm) );
 
     if (comm_rank==0) {
         printf("\n");
@@ -316,15 +318,17 @@ int hwcart_print_rank_topology(MPI_Comm comm, int nlevels, int *domain, int *top
 
     free(level_id);
     free(sbuff);
+    
+    return 0;
 }
 
 
-void hwcart_print_cube(MPI_Comm comm, int *gdim, int id, int *buff, int line_size, int order){
-    int ierr, k, j, i, kk, n;
+int hwcart_print_cube(MPI_Comm comm, int *gdim, int id, int *buff, int line_size, int order){
+    int k, j, i, kk, n;
     int comm_size;
     int periodic[3] = {0}, idx[3];
 
-    ierr = MPI_Comm_size(comm, &comm_size);
+    HWCART_MPI_CALL( MPI_Comm_size(comm, &comm_size) );
 
     for(k=gdim[2]-1; k>=0; k--){
         for(j=gdim[1]-1; j>=0; j--){
@@ -343,6 +347,7 @@ void hwcart_print_cube(MPI_Comm comm, int *gdim, int id, int *buff, int line_siz
         }
         printf("\n");
     }
+    return 0;
 }
 
 
