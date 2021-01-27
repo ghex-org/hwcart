@@ -13,7 +13,7 @@
 int hwcart_init(hwcart_topo_t *hwtopo_out)
 {
     hwloc_topology_t *phwloctopo;
-    int	res;
+    int res;
     phwloctopo = malloc(sizeof(hwloc_topology_t));
     res = hwloc_topology_init(phwloctopo);
     if(res) return res;
@@ -91,45 +91,45 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nsplits, int *domai
         if(split_type < 0){
             fprintf(stderr, "unknown memory domain %d, level %d\n", domain[i], i+1);
             hwloc_bitmap_free(m_cpuset);
-	    hwloc_bitmap_free(m_obj_cpuset);
+            hwloc_bitmap_free(m_obj_cpuset);
             hwloc_topology_destroy (hwloctopo);
             return -1;
         }
 
-	// clear the resource mask
-	hwloc_bitmap_xor (m_obj_cpuset, m_obj_cpuset, m_obj_cpuset);
-	
+        // clear the resource mask
+        hwloc_bitmap_xor (m_obj_cpuset, m_obj_cpuset, m_obj_cpuset);
+        
         int n = hwloc_get_nbobjs_by_type(hwloctopo, split_type);
-	int ncomponents = 0;
+        int ncomponents = 0;
         for(int j=0; j<n; j++){
-	  
+          
             // figure out on which object we reside
-	    obj = hwloc_get_obj_by_type (hwloctopo, split_type, j);
-	    
-	    if(!obj){
-	      char name[256];
-	      hwcart_split_type_to_name(split_type, name);
-	      fprintf(stderr, "no objects of type %s found on level %d\n", name, i);
-	      return -1;
-	    }
-	    
+            obj = hwloc_get_obj_by_type (hwloctopo, split_type, j);
+            
+            if(!obj){
+                char name[256];
+                hwcart_split_type_to_name(split_type, name);
+                fprintf(stderr, "no objects of type %s found on level %d\n", name, i);
+                return -1;
+            }
+            
             if(hwloc_bitmap_isincluded (m_cpuset, obj->cpuset)){
                 // include myself on this node
-		hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
+                hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
                 level_rank_out[i] = j;
-		break;
-	    }
-
-	    // m_cpuset might be larger than just one node: merge
-            if(hwloc_bitmap_isincluded (obj->cpuset, m_cpuset)){
-	      ncomponents++;
-	      hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
+                break;
             }
 
-	    if(hwloc_bitmap_isincluded (m_cpuset, m_obj_cpuset)){
-	      level_rank_out[i] = j/ncomponents;
-	      break;
-	    }
+            // m_cpuset might be larger than just one node: merge
+            if(hwloc_bitmap_isincluded (obj->cpuset, m_cpuset)){
+                ncomponents++;
+                hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
+            }
+
+            if(hwloc_bitmap_isincluded (m_cpuset, m_obj_cpuset)){
+                level_rank_out[i] = j/ncomponents;
+                break;
+            }
         }
 
         // find number of nodes on this level
@@ -230,32 +230,32 @@ int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, int split_type, int
     int ncomponents = 0;
     for(int j=0; j<n; j++){
 
-	// figure out on which object we reside
-	obj = hwloc_get_obj_by_type (*phwloctopo, hwloc_split_type, j);
-	if(!obj){
-	  char name[256];
-	  hwcart_split_type_to_name(split_type, name);
-	  fprintf(stderr, "no objects of type %s found\n", name);
-	  return -1;
-	}
-	
-	if(hwloc_bitmap_isincluded (m_cpuset, obj->cpuset)){
-	  // include myself on this node
-	  hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
-	  *noderank_out = j;
-	  break;
-	}
+        // figure out on which object we reside
+        obj = hwloc_get_obj_by_type (*phwloctopo, hwloc_split_type, j);
+        if(!obj){
+            char name[256];
+            hwcart_split_type_to_name(split_type, name);
+            fprintf(stderr, "no objects of type %s found\n", name);
+            return -1;
+        }
+        
+        if(hwloc_bitmap_isincluded (m_cpuset, obj->cpuset)){
+            // include myself on this node
+            hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
+            *noderank_out = j;
+            break;
+        }
 
-    	// m_cpuset might be larger than just one node: merge
-    	if(hwloc_bitmap_isincluded (obj->cpuset, m_cpuset)){
-    	  ncomponents++;
-    	  hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
-    	}
+        // m_cpuset might be larger than just one node: merge
+        if(hwloc_bitmap_isincluded (obj->cpuset, m_cpuset)){
+            ncomponents++;
+            hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
+        }
 
-    	if(hwloc_bitmap_isincluded (m_cpuset, m_obj_cpuset)){
-    	  *noderank_out = j/ncomponents;
-    	  break;
-    	}
+        if(hwloc_bitmap_isincluded (m_cpuset, m_obj_cpuset)){
+            *noderank_out = j/ncomponents;
+            break;
+        }
     }
 
     hwloc_bitmap_free(m_cpuset);
