@@ -106,7 +106,7 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nsplits, int *domai
 
         // cumsum: finds node rank for each unique node id
         for(int ii=1; ii<comm_size; ii++) sbuff[ii] = sbuff[ii] + sbuff[ii-1];
-        noderank = sbuff[nodeid] - 1;
+        noderank = sbuff[nodeid-1] - 1;
 
         // cleanup
         free(sbuff);
