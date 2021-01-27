@@ -8,6 +8,7 @@ int main(int argc, char *argv[])
 #ifdef EPYC
 #define NSPLITS 6
     int domain[NSPLITS] = {
+                               HWCART_MD_HWTHREAD,
                                HWCART_MD_CORE,
                                HWCART_MD_L3CACHE,
                                HWCART_MD_NUMA,
@@ -15,7 +16,8 @@ int main(int argc, char *argv[])
                                HWCART_MD_NODE
     };
     int topo[3*NSPLITS] = {
-                           2, 2, 1, // core grid
+                           1, 1, 1, // thread
+                           1, 1, 1, // core grid
                            2, 2, 1, // l3cache grid
                            1, 1, 4, // numa grid
                            1, 1, 1, // socket grid
