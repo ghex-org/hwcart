@@ -91,7 +91,6 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
     
     hwloc_bitmap_t m_obj_cpuset = hwloc_bitmap_alloc();
     hwloc_bitmap_t m_cpuset = hwloc_bitmap_alloc();
-    hwloc_obj_t obj;
     hwloc_get_cpubind(hwloctopo, m_cpuset, 0);
     
     for(int i=level-1; i>=0; i--){
@@ -112,7 +111,7 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
         for(int j=0; j<n; j++){
           
             // figure out on which object we reside
-            obj = hwloc_get_obj_by_type (hwloctopo, split_type, j);
+            hwloc_obj_t obj = hwloc_get_obj_by_type (hwloctopo, split_type, j);
             
             if(!obj){
                 char name[256];
@@ -138,6 +137,8 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
             }
 
             if(hwloc_bitmap_isincluded (m_cpuset, m_obj_cpuset)){
+                // NOTE: this works under the assumption that ranks are assigned 
+                // to subsequently numbered resources
                 level_rank_out[i] = j/ncomponents;
                 break;
             }
@@ -262,6 +263,8 @@ int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, hwcart_split_t in_s
         }
 
         if(hwloc_bitmap_isincluded (m_cpuset, m_obj_cpuset)){
+            // NOTE: this works under the assumption that ranks are assigned 
+            // to subsequently numbered resources
             *noderank_out = j/ncomponents;
             break;
         }
