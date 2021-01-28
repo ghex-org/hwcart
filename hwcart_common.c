@@ -297,7 +297,7 @@ int hwcart_print_rank_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels,
         }
 
         printf("\n");
-        printf("Rank layout\n");
+        printf("Rank layout in HWCART communicator\n");
         printf("\n");
         hwcart_print_cube(comm, gdim, 0, buff, nlevels+3, order);
 
