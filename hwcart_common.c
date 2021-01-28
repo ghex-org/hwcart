@@ -241,7 +241,7 @@ int hwcart_print_rank_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels,
     }
 
     level_id = calloc(nlevels, sizeof(int));
-    for(ii=0; ii<nlevels-1; ii++){
+    for(ii=0; ii<nlevels; ii++){
         hwcart_get_noderank(hwtopo, comm, domain[ii], level_id+ii);
     }
 

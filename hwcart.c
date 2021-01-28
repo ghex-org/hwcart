@@ -160,12 +160,6 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
             fprintf(stderr, "ERROR: wrong topology on level %d: expected %d nodes on this level, instead found %d\n",
                     i, topo[i*3+0]*topo[i*3+1]*topo[i*3+2], nlevel_nodes);
             return -1;
-        } else {
-            // no split
-            if(1 == topo[i*3+0]*topo[i*3+1]*topo[i*3+2]) {
-                level_rank_out[i] = 0;
-                continue;
-            }
         }
 
         // create a sub-topology
