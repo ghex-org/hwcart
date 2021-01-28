@@ -7,7 +7,7 @@
 #include <string.h>
 
 
-int hwcart_remap_ranks(MPI_Comm comm, int nsplits, int *domain, int *topo, int *level_rank, int order, MPI_Comm *hwcart_comm_out)
+int hwcart_remap_ranks(MPI_Comm comm, int nlevels, hwcart_split_t *domain, int *topo, int *level_rank, hwcart_order_t order, MPI_Comm *hwcart_comm_out)
 {
     int topo_coord[3] = {0}, gdim[3] = {1,1,1}, periodic[3] = {0};
     int ii, comm_rank, newrank;
@@ -16,11 +16,11 @@ int hwcart_remap_ranks(MPI_Comm comm, int nsplits, int *domain, int *topo, int *
 
     HWCART_MPI_CALL( MPI_Comm_rank(comm, &comm_rank) );
 
-    cartXYZ = calloc(sizeof(int), 3*nsplits);
-    dims    = calloc(sizeof(int), 3*nsplits);
+    cartXYZ = calloc(3*nlevels, sizeof(int));
+    dims    = calloc(3*nlevels, sizeof(int));
 
     // compute rank cartesian coordinates for each topological level
-    for(ii=0; ii<nsplits; ii++){
+    for(ii=0; ii<nlevels; ii++){
         hwcart_rank2coord(MPI_COMM_NULL, topo+3*ii, level_rank[ii], order, cartXYZ+3*ii);
     }
 
@@ -28,21 +28,21 @@ int hwcart_remap_ranks(MPI_Comm comm, int nsplits, int *domain, int *topo, int *
     dims[0] = 1;
     dims[1] = 1;
     dims[2] = 1;
-    for(ii=1; ii<nsplits; ii++){
+    for(ii=1; ii<nlevels; ii++){
         dims[ii*3+0] = dims[(ii-1)*3+0]*topo[(ii-1)*3+0];
         dims[ii*3+1] = dims[(ii-1)*3+1]*topo[(ii-1)*3+1];
         dims[ii*3+2] = dims[(ii-1)*3+2]*topo[(ii-1)*3+2];
     }
 
     // compute resulting global cartesian index
-    for(ii=0; ii<nsplits; ii++){
+    for(ii=0; ii<nlevels; ii++){
         topo_coord[0] = topo_coord[0] + cartXYZ[ii*3+0]*dims[ii*3+0];
         topo_coord[1] = topo_coord[1] + cartXYZ[ii*3+1]*dims[ii*3+1];
         topo_coord[2] = topo_coord[2] + cartXYZ[ii*3+2]*dims[ii*3+2];
     }
 
     // compute global grid dimensions
-    for(ii=0; ii<nsplits; ii++){
+    for(ii=0; ii<nlevels; ii++){
         gdim[0] *= topo[ii*3+0];
         gdim[1] *= topo[ii*3+1];
         gdim[2] *= topo[ii*3+2];
@@ -62,26 +62,26 @@ int hwcart_remap_ranks(MPI_Comm comm, int nsplits, int *domain, int *topo, int *
 }
 
 
-int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nsplits, int *domain, int *topo, int order, MPI_Comm *hwcart_comm_out)
+int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t order, MPI_Comm *hwcart_comm_out)
 {
     int retval;
     int *level_rank;
 
-    level_rank = calloc(sizeof(int), nsplits);
-    retval = hwcart_topology(hwtopo, mpi_comm, nsplits, domain, topo, level_rank, nsplits-1);
+    level_rank = calloc(nlevels, sizeof(int));
+    retval = hwcart_topology(hwtopo, mpi_comm, nlevels, domain, topo, level_rank, nlevels-1);
     if(retval<0) {
         free(level_rank);
         return retval;
     }
 
-    retval = hwcart_remap_ranks(mpi_comm, nsplits, domain, topo, level_rank, order, hwcart_comm_out);
+    retval = hwcart_remap_ranks(mpi_comm, nlevels, domain, topo, level_rank, order, hwcart_comm_out);
 
 #ifdef DEBUG
     int comm_rank, new_rank;
     MPI_Comm_rank(mpi_comm, &comm_rank);
     MPI_Comm_rank(*hwcart_comm_out, &new_rank);
     printf("%d -> %d: level_rank ", comm_rank, new_rank);
-    for(int i=0; i<nsplits; i++) printf("%d ", level_rank[i]); printf("\n");
+    for(int i=0; i<nlevels; i++) printf("%d ", level_rank[i]); printf("\n");
 #endif
 
     free(level_rank);
@@ -98,7 +98,7 @@ int hwcart_free(hwcart_topo_t *hwtopo, MPI_Comm *hwcart_comm)
 }
 
 
-int  hwcart_rank2coord(MPI_Comm comm, int *dims, int rank, int order, int *coord)
+int  hwcart_rank2coord(MPI_Comm comm, int *dims, int rank, hwcart_order_t order, int *coord)
 {
     int topo, tmp;
 
@@ -152,7 +152,7 @@ int  hwcart_rank2coord(MPI_Comm comm, int *dims, int rank, int order, int *coord
 }
 
 
-int  hwcart_coord2rank(MPI_Comm comm, int *dims, int *periodic, int *coord, int order, int *rank_out)
+int  hwcart_coord2rank(MPI_Comm comm, int *dims, int *periodic, int *coord, hwcart_order_t order, int *rank_out)
 {
     int tcoord[3], ii, topo;
 
@@ -219,7 +219,7 @@ int  hwcart_coord2rank(MPI_Comm comm, int *dims, int *periodic, int *coord, int 
 }
 
 
-int hwcart_print_rank_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, int *domain, int *topo, int order)
+int hwcart_print_rank_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t order)
 {
     int *buff;
     int ii, gdim[3] = {1,1,1};
@@ -235,19 +235,19 @@ int hwcart_print_rank_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels,
         gdim[2] *= topo[ii*3+2];
     }
 
-    level_id = calloc(sizeof(int), nlevels);
+    level_id = calloc(nlevels, sizeof(int));
     for(ii=0; ii<nlevels-1; ii++){
         hwcart_get_noderank(hwtopo, comm, domain[ii], level_id+ii);
     }
 
-    sbuff = calloc(sizeof(int), nlevels+3);
+    sbuff = calloc(nlevels+3, sizeof(int));
 
     // obtain all values at master
     HWCART_MPI_CALL( MPI_Comm_rank(MPI_COMM_WORLD, &orank) );
     HWCART_MPI_CALL( MPI_Comm_rank(comm, &comm_rank) );
     HWCART_MPI_CALL( MPI_Comm_size(comm, &comm_size) );
 
-    buff = calloc(sizeof(int), (nlevels+3)*comm_size);
+    buff = calloc((nlevels+3)*comm_size, sizeof(int));
     sbuff[0] = comm_rank;
     sbuff[1] = orank;
     sbuff[2] = sched_getcpu(); // -D_GNU_SOURCE
@@ -323,7 +323,7 @@ int hwcart_print_rank_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels,
 }
 
 
-int hwcart_print_cube(MPI_Comm comm, int *gdim, int id, int *buff, int line_size, int order){
+int hwcart_print_cube(MPI_Comm comm, int *gdim, int id, int *buff, int line_size, hwcart_order_t order){
     int k, j, i, kk, n;
     int comm_size;
     int periodic[3] = {0}, idx[3];
@@ -354,9 +354,6 @@ int hwcart_print_cube(MPI_Comm comm, int *gdim, int id, int *buff, int line_size
 void hwcart_split_type_to_name(int split_type, char *name) {
 
     switch (split_type) {
-    case (MPI_COMM_TYPE_SHARED):
-        sprintf(name, "MPI_COMM_TYPE_SHARED");
-        break;
     case (HWCART_MD_HWTHREAD):
         sprintf(name, "HWCART_MD_HWTHREAD");
         break;

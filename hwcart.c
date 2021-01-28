@@ -33,14 +33,14 @@ int  hwcart_free_hwtopo(hwcart_topo_t *hwtopo)
 }
 
 
-int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nsplits, int *domain, int *topo, int *level_rank_out, int level)
+int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_split_t *domain, int *topo, int *level_rank_out, int level)
 {
     int comm_rank, comm_size, color, split_type;
     MPI_Comm shmem_comm;
     int shmem_rank, shmem_size;
     MPI_Comm master_comm;
     int nlevel_nodes;
-    for(int i=0; i<nsplits; i++) level_rank_out[i] = -1;
+    for(int i=0; i<nlevels; i++) level_rank_out[i] = -1;
 
     // parent communicator
     HWCART_MPI_CALL( MPI_Comm_rank(comm, &comm_rank) );
@@ -182,8 +182,8 @@ int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, int split_type, int
         HWCART_MPI_CALL( MPI_Comm_rank(comm, &rank) );
         HWCART_MPI_CALL( MPI_Comm_size(comm, &size) );
 
-        sbuff = calloc(sizeof(int), size);
-        rbuff = calloc(sizeof(int), size);
+        sbuff = calloc(size, sizeof(int));
+        rbuff = calloc(size, sizeof(int));
 
         // create local communicator
         HWCART_MPI_CALL( MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &shmem_comm) );

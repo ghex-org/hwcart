@@ -6,8 +6,8 @@ int main(int argc, char *argv[])
 {
 
 #ifdef EPYC
-#define NSPLITS 6
-    int domain[NSPLITS] = {
+#define NLEVELS 6
+    hwcart_split_t domain[NLEVELS] = {
                                HWCART_MD_HWTHREAD,
                                HWCART_MD_CORE,
                                HWCART_MD_L3CACHE,
@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
                                HWCART_MD_SOCKET,
                                HWCART_MD_NODE
     };
-    int topo[3*NSPLITS] = {
+    int topo[3*NLEVELS] = {
                            1, 1, 1, // thread
                            1, 1, 1, // core grid
                            2, 2, 1, // l3cache grid
@@ -24,8 +24,8 @@ int main(int argc, char *argv[])
                            1, 1, 1, // node grid
     };
 #else
-#define NSPLITS 6
-    int domain[NSPLITS] = {
+#define NLEVELS 6
+    hwcart_split_t domain[NLEVELS] = {
                                HWCART_MD_HWTHREAD,
                                HWCART_MD_CORE,
                                HWCART_MD_L3CACHE,
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
                                HWCART_MD_SOCKET,
                                HWCART_MD_NODE
     };
-    int topo[3*NSPLITS] = {
+    int topo[3*NLEVELS] = {
                            2, 1, 1, // hwthread grid
                            1, 2, 2, // core grid
                            1, 1, 1, // l3cache grid
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
 #endif
 
     int comm_rank, comm_size;
-    int order = HWCartOrderXYZ;
+    hwcart_order_t order = HWCartOrderXYZ;
     hwcart_topo_t hwtopo;
     MPI_Comm hwcart_comm;
 
@@ -61,8 +61,8 @@ int main(int argc, char *argv[])
         exit(1);
     }
     
-    if(!hwcart_create(hwtopo, MPI_COMM_WORLD, NSPLITS, domain, topo, order, &hwcart_comm)){
-        hwcart_print_rank_topology(hwtopo, hwcart_comm, NSPLITS, domain, topo, order);
+    if(!hwcart_create(hwtopo, MPI_COMM_WORLD, NLEVELS, domain, topo, order, &hwcart_comm)){
+        hwcart_print_rank_topology(hwtopo, hwcart_comm, NLEVELS, domain, topo, order);
         hwcart_free(&hwtopo, &hwcart_comm);
     }
 

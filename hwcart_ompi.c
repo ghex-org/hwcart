@@ -21,7 +21,7 @@ int  hwcart_free_hwtopo(hwcart_topo_t *hwtopo)
 }
 
 
-int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nsplits, int *domain, int *topo, int *level_rank_out, int level)
+int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_split_t *domain, int *topo, int *level_rank_out, int level)
 {
     int *sbuff, *rbuff;
     int comm_rank, comm_size, nodeid, noderank, color;
@@ -67,7 +67,7 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nsplits, int *domai
             return -1;
         }
         level_rank_out[level] = 0;
-        return hwcart_topology(hwtopo, split_comm, nsplits, domain, topo, level_rank_out, level-1);
+        return hwcart_topology(hwtopo, split_comm, nlevels, domain, topo, level_rank_out, level-1);
     }
 
     // make a master-rank communicator: masters from each split comm join
@@ -93,8 +93,8 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nsplits, int *domai
         }
 
         // comm buffers to establish unique node id's for each master
-        sbuff = (int*)calloc(sizeof(int),comm_size);
-        rbuff = (int*)calloc(sizeof(int),comm_size);
+        sbuff = (int*)calloc(comm_size, sizeof(int));
+        rbuff = (int*)calloc(comm_size, sizeof(int));
 
         // find node rank based on unique node id from above
         for(int ii=0; ii<comm_size; ii++) sbuff[ii] = nodeid;
@@ -122,7 +122,7 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nsplits, int *domai
     level_rank_out[level] = noderank;
 
     // sub-divide lower levels
-    retval = hwcart_topology(hwtopo, split_comm, nsplits, domain, topo, level_rank_out, level-1);
+    retval = hwcart_topology(hwtopo, split_comm, nlevels, domain, topo, level_rank_out, level-1);
 
     // cleanup
     HWCART_MPI_CALL( MPI_Comm_disconnect(&split_comm) );
@@ -144,8 +144,8 @@ int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, int split_type, int
     HWCART_MPI_CALL( MPI_Comm_size(comm, &size) );
 
     // communication buffers
-    sbuff = calloc(sizeof(int), size);
-    rbuff = calloc(sizeof(int), size);
+    sbuff = calloc(size, sizeof(int));
+    rbuff = calloc(size, sizeof(int));
 
     //check for OpenMPI to use fine-grain hwloc domains
     HWCART_MPI_CALL( MPI_Get_library_version(version, &resultlen) );
