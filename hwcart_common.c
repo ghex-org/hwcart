@@ -67,6 +67,11 @@ int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_
     int retval;
     int *level_rank;
 
+    if(domain[nlevels-1] != HWCART_MD_NODE){
+        fprintf(stderr, "top memory domain must be HWCART_MD_NODE\n");
+        return -1;
+    }
+    
     level_rank = calloc(nlevels, sizeof(int));
     retval = hwcart_topology(hwtopo, mpi_comm, nlevels, domain, topo, level_rank, nlevels-1);
     if(retval<0) {

@@ -29,9 +29,7 @@ typedef enum {
    - domain and topo are arrays of size nlevels*ndim
 */
 
-typedef struct {
-  void *ptopo;
-} hwcart_topo_t;
+typedef struct hwcart_topo_struct_t* hwcart_topo_t;
 
 int hwcart_init(hwcart_topo_t *hwtopo_out);
 

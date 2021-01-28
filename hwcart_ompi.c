@@ -6,17 +6,25 @@
 #include <sys/sysinfo.h>
 #include <string.h>
 
-
 #ifndef USE_HWLOC
-int hwcart_init(hwcart_topo_t *topo_out)
+
+int hwcart_split_type(hwcart_split_t split_type);
+
+struct hwcart_topo_struct_t {
+    int dummy; // warning: struct has no members [-Wpedantic]
+};
+
+
+int hwcart_init(hwcart_topo_t *hwtopo_out)
 {
-    topo_out->ptopo = NULL;
+    *hwtopo_out = NULL;
     return 0;
 }
 
 
 int  hwcart_free_hwtopo(hwcart_topo_t *hwtopo)
 {
+    *hwtopo = NULL;
     return 0;
 }
 
@@ -24,7 +32,7 @@ int  hwcart_free_hwtopo(hwcart_topo_t *hwtopo)
 int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_split_t *domain, int *topo, int *level_rank_out, int level)
 {
     int *sbuff, *rbuff;
-    int comm_rank, comm_size, nodeid, noderank, color;
+    int comm_rank, comm_size, nodeid, noderank;
     MPI_Comm split_comm;
     int split_type, split_rank, split_size;
     MPI_Comm master_comm;
@@ -71,18 +79,16 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
     }
 
     // make a master-rank communicator: masters from each split comm join
-    color = 0;
     if (split_rank != 0){
 
         // non-masters
-        HWCART_MPI_CALL( MPI_Comm_split(comm, color, 0, &master_comm) );
+        HWCART_MPI_CALL( MPI_Comm_split(comm, 0, 0, &master_comm) );
     } else {
 
         // masters
         // temporary nodeid identifier: rank of the split master, +1 needed
         nodeid = comm_rank+1;
-        color = 1;
-        HWCART_MPI_CALL( MPI_Comm_split(comm, color, 0, &master_comm) );
+        HWCART_MPI_CALL( MPI_Comm_split(comm, 1, 0, &master_comm) );
         HWCART_MPI_CALL( MPI_Comm_size(master_comm, &master_size) );
 
         // verify topology validity on this level
@@ -130,11 +136,12 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
     return retval;
 }
 
+
 // obtain level node ID of the calling rank
-int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, int split_type, int *noderank_out)
+int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, hwcart_split_t in_split_type, int *noderank_out)
 {
     int *sbuff, *rbuff;
-    int nodeid, rank, size, ii;
+    int nodeid, rank, size, ii, split_type;
     MPI_Comm shmem_comm;
     char version[MPI_MAX_LIBRARY_VERSION_STRING];
     int resultlen;
@@ -152,7 +159,7 @@ int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, int split_type, int
     if(0 == strncmp(version, "Open MPI", strlen("Open MPI"))){
 
         // create local communicator
-        split_type = hwcart_split_type(split_type);
+        split_type = hwcart_split_type(in_split_type);
         if(split_type < 0){
             fprintf(stderr, "unknown memory domain %d\n", split_type);
             return -1;
@@ -191,7 +198,8 @@ int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, int split_type, int
     return 0;
 }
 
-int hwcart_split_type(int split_type)
+
+int hwcart_split_type(hwcart_split_t split_type)
 {
     switch (split_type) {
     case (HWCART_MD_HWTHREAD):

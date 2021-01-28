@@ -9,64 +9,73 @@
 #ifdef USE_HWLOC
 #include <hwloc.h>
 
+hwloc_obj_type_t hwcart_split_type(hwcart_split_t split_type);
+
+struct hwcart_topo_struct_t {
+    hwloc_topology_t topo;
+};
+
 
 int hwcart_init(hwcart_topo_t *hwtopo_out)
 {
-    hwloc_topology_t *phwloctopo;
     int res;
-    phwloctopo = malloc(sizeof(hwloc_topology_t));
-    res = hwloc_topology_init(phwloctopo);
-    if(res) return res;
-    res = hwloc_topology_load(*phwloctopo);
-    if(res) return res;
-    hwtopo_out->ptopo = (void*)phwloctopo;
+    *hwtopo_out = malloc(sizeof(struct hwcart_topo_struct_t));
+    res = hwloc_topology_init(&(*hwtopo_out)->topo);
+    if(res) {
+        free(*hwtopo_out);
+        *hwtopo_out = NULL;
+        return res;
+    }
+    res = hwloc_topology_load((*hwtopo_out)->topo);
+    if(res) {
+        hwloc_topology_destroy ((*hwtopo_out)->topo);
+        free(*hwtopo_out);
+        *hwtopo_out = NULL;        
+        return res;
+    }
     return 0;
 }
 
 
 int  hwcart_free_hwtopo(hwcart_topo_t *hwtopo)
 {
-    hwloc_topology_destroy (*((hwloc_topology_t*)hwtopo->ptopo));
-    free(hwtopo->ptopo);
-    hwtopo->ptopo = NULL;
+    hwloc_topology_destroy((*hwtopo)->topo);
+    free(*hwtopo);
+    *hwtopo = NULL;
     return 0;
 }
 
 
 int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_split_t *domain, int *topo, int *level_rank_out, int level)
 {
-    int comm_rank, comm_size, color, split_type;
+    int comm_rank, comm_size;
+    hwloc_obj_type_t split_type;
     MPI_Comm shmem_comm;
     int shmem_rank, shmem_size;
     MPI_Comm master_comm;
     int nlevel_nodes;
+
+    // init
     for(int i=0; i<nlevels; i++) level_rank_out[i] = -1;
 
     // parent communicator
     HWCART_MPI_CALL( MPI_Comm_rank(comm, &comm_rank) );
     HWCART_MPI_CALL( MPI_Comm_size(comm, &comm_size) );
 
-    if(domain[level] != HWCART_MD_NODE){
-        fprintf(stderr, "top memory domain must be HWCART_MD_NODE\n");
-        return -1;
-    }
-
-    // create communicator for this topology level
+    // create communicator for shared memory nodes
     HWCART_MPI_CALL( MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &shmem_comm) );
     HWCART_MPI_CALL( MPI_Comm_rank(shmem_comm, &shmem_rank) );
     HWCART_MPI_CALL( MPI_Comm_size(shmem_comm, &shmem_size) );
 
     // make a master-rank communicator: masters from each split comm join
-    color = 0;
     if (shmem_rank != 0){
 
         // non-masters
-        HWCART_MPI_CALL( MPI_Comm_split(comm, color, 0, &master_comm) );
+        HWCART_MPI_CALL( MPI_Comm_split(comm, 0, 0, &master_comm) );
     } else {
 
         // masters
-        color = 1;
-        HWCART_MPI_CALL( MPI_Comm_split(comm, color, 0, &master_comm) );
+        HWCART_MPI_CALL( MPI_Comm_split(comm, 1, 0, &master_comm) );
         HWCART_MPI_CALL( MPI_Comm_rank(master_comm, level_rank_out+level) );
     }
     
@@ -78,14 +87,13 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
 
     // we need a copy of the topology: we modify it
     hwloc_topology_t hwloctopo;
-    hwloc_topology_dup(&hwloctopo, *((hwloc_topology_t*)hwtopo.ptopo));
+    hwloc_topology_dup(&hwloctopo, hwtopo->topo);
     
     hwloc_bitmap_t m_obj_cpuset = hwloc_bitmap_alloc();
     hwloc_bitmap_t m_cpuset = hwloc_bitmap_alloc();
     hwloc_obj_t obj;
     hwloc_get_cpubind(hwloctopo, m_cpuset, 0);
     
-    color = 0;
     for(int i=level-1; i>=0; i--){
         split_type = hwcart_split_type(domain[i]);
         if(split_type < 0){
@@ -108,8 +116,11 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
             
             if(!obj){
                 char name[256];
-                hwcart_split_type_to_name(split_type, name);
+                hwcart_split_type_to_name(domain[i], name);
                 fprintf(stderr, "no objects of type %s found on level %d\n", name, i);
+                hwloc_bitmap_free(m_cpuset);
+                hwloc_bitmap_free(m_obj_cpuset);
+                hwloc_topology_destroy (hwloctopo);
                 return -1;
             }
             
@@ -169,14 +180,16 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
     return 0;
 }
 
+
 // obtain level node ID of the calling rank
-int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, int split_type, int *noderank_out)
+int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, hwcart_split_t in_split_type, int *noderank_out)
 {
     int *sbuff, *rbuff;
     int nodeid, rank, size, ii;
+    hwloc_obj_type_t split_type;    
     MPI_Comm shmem_comm;
 
-    if(split_type == HWCART_MD_NODE){
+    if(in_split_type == HWCART_MD_NODE){
     
         // old rank
         HWCART_MPI_CALL( MPI_Comm_rank(comm, &rank) );
@@ -214,28 +227,30 @@ int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, int split_type, int
         return 0;
     }
   
-    int hwloc_split_type = hwcart_split_type(split_type);
-    if(hwloc_split_type < 0){
-        fprintf(stderr, "unknown memory domain %d\n", split_type);
+    split_type = hwcart_split_type(in_split_type);
+    if(split_type < 0){
+        fprintf(stderr, "unknown memory domain %d\n", in_split_type);
         return -1;
     }
 
-    hwloc_topology_t *phwloctopo = (hwloc_topology_t*)hwtopo.ptopo;
+    hwloc_topology_t *phwloctopo = &hwtopo->topo;
     hwloc_bitmap_t m_obj_cpuset = hwloc_bitmap_alloc();
     hwloc_bitmap_t m_cpuset = hwloc_bitmap_alloc();
     hwloc_obj_t obj;
     hwloc_get_cpubind(*phwloctopo, m_cpuset, 0);
 
-    int n = hwloc_get_nbobjs_by_type(*phwloctopo, hwloc_split_type);
+    int n = hwloc_get_nbobjs_by_type(*phwloctopo, split_type);
     int ncomponents = 0;
     for(int j=0; j<n; j++){
 
         // figure out on which object we reside
-        obj = hwloc_get_obj_by_type (*phwloctopo, hwloc_split_type, j);
+        obj = hwloc_get_obj_by_type (*phwloctopo, split_type, j);
         if(!obj){
             char name[256];
-            hwcart_split_type_to_name(split_type, name);
+            hwcart_split_type_to_name(in_split_type, name);
             fprintf(stderr, "no objects of type %s found\n", name);
+            hwloc_bitmap_free(m_cpuset);
+            hwloc_bitmap_free(m_obj_cpuset);
             return -1;
         }
         
@@ -259,10 +274,12 @@ int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, int split_type, int
     }
 
     hwloc_bitmap_free(m_cpuset);
+    hwloc_bitmap_free(m_obj_cpuset);
     return 0;
 }
 
-int hwcart_split_type(int split_type)
+
+hwloc_obj_type_t hwcart_split_type(hwcart_split_t split_type)
 {
     switch (split_type) {
     case (HWCART_MD_HWTHREAD):
