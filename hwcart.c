@@ -160,6 +160,7 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
                 return 0;
             }
             close(shmem_fd);
+	    return 0;
         }
         
         // load the topology
