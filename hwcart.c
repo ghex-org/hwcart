@@ -5,9 +5,15 @@
 #include <sched.h>
 #include <sys/sysinfo.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #ifdef USE_HWLOC
 #include <hwloc.h>
+#include <hwloc/shmem.h>
 
 hwloc_obj_type_t hwcart_split_type(hwcart_split_t split_type);
 
@@ -16,22 +22,153 @@ struct hwcart_topo_struct_t {
 };
 
 
+int load_hwtopo(hwcart_topo_t hwtopo)
+{
+    int res;
+    res = hwloc_topology_init(&hwtopo->topo);
+    if(res) {
+        fprintf(stderr, "failed to initialize topology data structure\n");
+        return res;
+    }
+    res = hwloc_topology_load(hwtopo->topo);
+    if(res) {
+        fprintf(stderr, "failed to load topology\n");
+        hwloc_topology_destroy (hwtopo->topo);
+        return res;
+    }
+    return 0;
+}
+
+
 int hwcart_init(hwcart_topo_t *hwtopo_out)
 {
     int res;
+    pid_t master_pid;
+    size_t shmem_size;
+    void *shmem_addr;
+    char shmem_filename[256];
+    MPI_Comm shmem_comm;   
+    int rank;
+
     *hwtopo_out = malloc(sizeof(struct hwcart_topo_struct_t));
-    res = hwloc_topology_init(&(*hwtopo_out)->topo);
-    if(res) {
-        free(*hwtopo_out);
-        *hwtopo_out = NULL;
-        return res;
-    }
-    res = hwloc_topology_load((*hwtopo_out)->topo);
-    if(res) {
-        hwloc_topology_destroy ((*hwtopo_out)->topo);
-        free(*hwtopo_out);
-        *hwtopo_out = NULL;        
-        return res;
+
+    // a single process reads the topo for each compute node
+    // the topo is then shared through shared memory
+    HWCART_MPI_CALL( MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &shmem_comm) );
+    HWCART_MPI_CALL( MPI_Comm_rank(shmem_comm, &rank) );
+
+    if(rank==0){
+
+        res = load_hwtopo(*hwtopo_out);
+        if(0 != res){
+            free(*hwtopo_out);
+            *hwtopo_out = NULL;
+            return res;
+        }
+
+        hwloc_shmem_topology_get_length((*hwtopo_out)->topo, &shmem_size, 0);
+
+        master_pid = getpid();
+        snprintf(shmem_filename, 256, "/dev/shm/hwcart_topo.sm.%i", master_pid);
+        int shmem_fd = open(shmem_filename, O_CREAT | O_RDWR, 0600);
+        if(-1 == shmem_fd){
+            fprintf(stderr, "failed to create backing file in shared memory.\n");
+
+            // each process loads the topology itself
+            master_pid = 0;
+            HWCART_MPI_CALL( MPI_Bcast(&master_pid, sizeof(master_pid), MPI_BYTE, 0, shmem_comm) );
+            return 0;
+        }
+
+        // use mmap to get a default address
+        shmem_addr = mmap(NULL, shmem_size, PROT_READ | PROT_WRITE, MAP_SHARED, shmem_fd, 0);
+        if(NULL == shmem_addr){
+            fprintf(stderr, "failed to mmap shared memory\n");
+            close(shmem_fd);
+            unlink(shmem_filename);
+
+            // each process loads the topology itself
+            master_pid = 0;
+            HWCART_MPI_CALL( MPI_Bcast(&master_pid, sizeof(master_pid), MPI_BYTE, 0, shmem_comm) );
+            return 0;
+        }
+
+        // free the address
+        munmap(shmem_addr, shmem_size);
+
+        // store the topology
+        res = hwloc_shmem_topology_write((*hwtopo_out)->topo, shmem_fd, 0, shmem_addr, shmem_size, 0);
+        if(0 != res){
+            fprintf(stderr, "failed to write topology info to shared memory\n");
+            close(shmem_fd);
+            unlink(shmem_filename);
+
+            // each process loads the topology itself
+            master_pid = 0;
+            HWCART_MPI_CALL( MPI_Bcast(&master_pid, sizeof(master_pid), MPI_BYTE, 0, shmem_comm) );
+            return 0;
+        }
+        close(shmem_fd);
+        
+        // broadcast topology info
+        HWCART_MPI_CALL( MPI_Bcast(&master_pid, sizeof(master_pid), MPI_BYTE, 0, shmem_comm) );
+        HWCART_MPI_CALL( MPI_Bcast(&shmem_size, sizeof(shmem_size), MPI_BYTE, 0, shmem_comm) );
+        HWCART_MPI_CALL( MPI_Bcast(&shmem_addr, sizeof(shmem_addr), MPI_BYTE, 0, shmem_comm) );
+
+        MPI_Barrier(shmem_comm);
+        unlink(shmem_filename);
+
+    } else {
+
+        // do we have shared topology?
+        HWCART_MPI_CALL( MPI_Bcast(&master_pid, sizeof(master_pid), MPI_BYTE, 0, shmem_comm) );
+        if(0 != master_pid){
+
+            HWCART_MPI_CALL( MPI_Bcast(&shmem_size, sizeof(shmem_size), MPI_BYTE, 0, shmem_comm) );
+            HWCART_MPI_CALL( MPI_Bcast(&shmem_addr, sizeof(shmem_addr), MPI_BYTE, 0, shmem_comm) );
+
+            snprintf(shmem_filename, 256, "/dev/shm/hwcart_topo.sm.%i", master_pid);
+            int shmem_fd = open(shmem_filename, O_RDONLY, 0600);
+
+            // we can clean up the shm now
+            MPI_Barrier(shmem_comm);
+            
+            if(-1 == shmem_fd){
+                fprintf(stderr, "failed to open backing file in shared memory.\n");
+
+                // load the topology
+                res = load_hwtopo(*hwtopo_out);
+                if(0 != res){
+                    free(*hwtopo_out);
+                    *hwtopo_out = NULL;
+                    return res;
+                }
+                return 0;
+            }
+            
+            res = hwloc_shmem_topology_adopt(&(*hwtopo_out)->topo, shmem_fd, 0, shmem_addr, shmem_size, 0);
+            if(0 != res){
+                fprintf(stderr, "failed to adopt topology, reading topology directly\n");
+                
+                // load the topology
+                res = load_hwtopo(*hwtopo_out);
+                if(0 != res){
+                    free(*hwtopo_out);
+                    *hwtopo_out = NULL;
+                    return res;
+                }
+                return 0;
+            }
+            close(shmem_fd);
+        }
+        
+        // load the topology
+        res = load_hwtopo(*hwtopo_out);
+        if(0 != res){
+            free(*hwtopo_out);
+            *hwtopo_out = NULL;
+            return res;
+        }
     }
     return 0;
 }
