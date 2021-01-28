@@ -346,7 +346,7 @@ int hwcart_print_cube(MPI_Comm comm, int *gdim, int id, int *buff, int line_size
                 if(comm_size < 1000)
                     printf("%4d", buff[n*line_size + id]);
                 else
-                    printf("%3d", buff[n*line_size + id]);
+                    printf("%5d", buff[n*line_size + id]);
             }
             printf("\n");
         }
