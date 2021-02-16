@@ -9,6 +9,7 @@ if("${isSystemDir}" STREQUAL "-1")
 endif("${isSystemDir}" STREQUAL "-1")
 
 target_link_libraries (test PUBLIC ${DEPENDENCY_TARGETS})
+target_link_libraries (test PUBLIC MPI::MPI_C)
 target_link_libraries (test PUBLIC hwcart)
 
 install (TARGETS test DESTINATION bin)

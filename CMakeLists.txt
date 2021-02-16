@@ -15,6 +15,8 @@ endif()
 add_compile_definitions(_GNU_SOURCE)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+find_package(MPI REQUIRED)
+
 # do we use HWLOC?
 option (USE_HWLOC "use hwloc" OFF)
 if (USE_HWLOC)
@@ -28,6 +30,7 @@ else ()
 endif (USE_HWLOC)
 
 add_library(hwcart SHARED)
+target_link_libraries (hwcart PUBLIC MPI::MPI_C)
 
 add_subdirectory(src)
 
