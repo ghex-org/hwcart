@@ -1,14 +1,12 @@
-#include "hwcart.h"
+#include <hwcart/hwcart.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 int main(int argc, char *argv[])
 {
 
-#ifdef EPYC
-#define NLEVELS 6
+#define NLEVELS 5
     hwcart_split_t domain[NLEVELS] = {
-                               HWCART_MD_HWTHREAD,
                                HWCART_MD_CORE,
                                HWCART_MD_L3CACHE,
                                HWCART_MD_NUMA,
@@ -16,32 +14,12 @@ int main(int argc, char *argv[])
                                HWCART_MD_NODE
     };
     int topo[3*NLEVELS] = {
-                           2, 1, 1, // thread
                            4, 1, 1, // core grid
                            1, 2, 2, // l3cache grid
                            1, 2, 2, // numa grid
                            1, 2, 1, // socket grid
                            1, 1, 1, // node grid
     };
-#else
-#define NLEVELS 6
-    hwcart_split_t domain[NLEVELS] = {
-                               HWCART_MD_HWTHREAD,
-                               HWCART_MD_CORE,
-                               HWCART_MD_L3CACHE,
-                               HWCART_MD_NUMA,
-                               HWCART_MD_SOCKET,
-                               HWCART_MD_NODE
-    };
-    int topo[3*NLEVELS] = {
-                           2, 1, 1, // hwthread grid
-                           1, 2, 2, // core grid
-                           1, 1, 1, // l3cache grid
-                           1, 1, 1, // numa grid
-                           1, 1, 1, // socket grid
-                           1, 1, 1, // node grid
-    };
-#endif
 
     int comm_rank, comm_size;
     hwcart_order_t order = HWCartOrderXYZ;
@@ -49,7 +27,7 @@ int main(int argc, char *argv[])
     MPI_Comm hwcart_comm;
 
     if(argc>1){
-      order = atoi(argv[1]);
+	order = (hwcart_order_t)atoi(argv[1]);
     }
 
     MPI_Init(&argc, &argv);
