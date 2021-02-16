@@ -66,9 +66,24 @@ int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_
 {
     int retval;
     int *level_rank;
+    int ii, gdim[3] = {1,1,1};
+    int comm_size;
 
     if(domain[nlevels-1] != HWCART_MD_NODE){
         fprintf(stderr, "top memory domain must be HWCART_MD_NODE\n");
+        return -1;
+    }
+
+    // verify number of ranks vs. the config
+    for(ii=0; ii<nlevels; ii++){
+        gdim[0] *= topo[ii*3+0];
+        gdim[1] *= topo[ii*3+1];
+        gdim[2] *= topo[ii*3+2];
+    }
+    HWCART_MPI_CALL( MPI_Comm_size(mpi_comm, &comm_size) );
+    if(comm_size != gdim[0]*gdim[1]*gdim[2]) {
+        fprintf(stderr, "number of ranks (%d) is different than the specified rank grid size (%d)\n",
+		comm_size, gdim[0]*gdim[1]*gdim[2]);
         return -1;
     }
     

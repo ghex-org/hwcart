@@ -16,11 +16,11 @@ int main(int argc, char *argv[])
                                HWCART_MD_NODE
     };
     int topo[3*NLEVELS] = {
-                           1, 1, 1, // thread
-                           1, 1, 1, // core grid
-                           2, 2, 1, // l3cache grid
-                           1, 1, 4, // numa grid
-                           1, 1, 1, // socket grid
+                           2, 1, 1, // thread
+                           4, 1, 1, // core grid
+                           1, 2, 2, // l3cache grid
+                           1, 2, 2, // numa grid
+                           1, 2, 1, // socket grid
                            1, 1, 1, // node grid
     };
 #else
