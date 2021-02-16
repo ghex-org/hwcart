@@ -30,11 +30,42 @@ else ()
 endif (USE_HWLOC)
 
 add_library(hwcart SHARED)
+add_library(HWCART::hwcart ALIAS hwcart)
+target_include_directories(hwcart PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
 target_link_libraries (hwcart PUBLIC MPI::MPI_C)
 
 add_subdirectory(src)
 
-option (USE_TESTS "build tests" OFF)
+option(USE_TESTS "build tests" OFF)
 if (USE_TESTS)
   add_subdirectory(tests)
 endif()
+
+include(GNUInstallDirs)
+install(TARGETS hwcart
+    EXPORT HWCART-targets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(EXPORT HWCART-targets
+  FILE HWCART-targets.cmake
+  NAMESPACE HWCART::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake)
+include(CMakePackageConfigHelpers)
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/HWCARTConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/HWCARTConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake)
+write_basic_package_version_file(HWCARTConfigVersion.cmake
+    VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
+install(
+    FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/HWCARTConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/HWCARTConfigVersion.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindHWLOC.cmake
+    DESTINATION
+        ${CMAKE_INSTALL_LIBDIR}/cmake)
+export(EXPORT HWCART-targets
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/HWCART-targets.cmake")
