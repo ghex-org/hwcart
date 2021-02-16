@@ -1,4 +1,4 @@
-if (USE_HWLOC)
+if (HWCART_USE_HWLOC)
    message(STATUS "linking HWLOC " ${HWLOC_INCLUDE_DIRS})
    find_package(HWLOC REQUIRED)
    target_compile_definitions(hwcart PUBLIC USE_HWLOC)
@@ -6,6 +6,6 @@ if (USE_HWLOC)
    target_sources(hwcart PRIVATE hwcart.c)
 else ()
    target_sources(hwcart PRIVATE hwcart_ompi.c)
-endif (USE_HWLOC)
+endif (HWCART_USE_HWLOC)
 
 target_sources(hwcart PRIVATE hwcart_common.c)

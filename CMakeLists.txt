@@ -18,8 +18,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 find_package(MPI REQUIRED)
 
 # do we use HWLOC?
-option (USE_HWLOC "use hwloc" OFF)
-if (USE_HWLOC)
+option (HWCART_USE_HWLOC "use hwloc" OFF)
+if (HWCART_USE_HWLOC)
    find_package(HWLOC)
    if (HWLOC_FOUND)
      list (APPEND DEPENDENCY_TARGETS HWLOC::libhwloc)
@@ -27,7 +27,7 @@ if (USE_HWLOC)
    endif (HWLOC_FOUND)
 else ()
    message(STATUS "Using OpenMPI hardware locality features. Can only compile using OpenMPI.")
-endif (USE_HWLOC)
+endif (HWCART_USE_HWLOC)
 
 add_library(hwcart SHARED)
 add_library(HWCART::hwcart ALIAS hwcart)
@@ -38,8 +38,8 @@ target_link_libraries (hwcart PUBLIC MPI::MPI_C)
 
 add_subdirectory(src)
 
-option(USE_TESTS "build tests" OFF)
-if (USE_TESTS)
+option(HWCART_USE_TESTS "build tests" OFF)
+if (HWCART_USE_TESTS)
   add_subdirectory(tests)
 endif()
 

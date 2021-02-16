@@ -1,7 +1,5 @@
 add_executable(hwcart_test test.c)
 
-find_package(MPI REQUIRED)
-
 # mark RPATH to be used when installing, but only if it's not a system directory
 list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
 if("${isSystemDir}" STREQUAL "-1")
