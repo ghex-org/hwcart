@@ -6,7 +6,7 @@
 #include <sys/sysinfo.h>
 #include <string.h>
 
-#ifndef USE_HWLOC
+#ifndef HWCART_USE_HWLOC
 
 int hwcart_split_type(hwcart_split_t split_type);
 

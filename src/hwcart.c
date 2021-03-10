@@ -11,7 +11,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#ifdef USE_HWLOC
+#ifdef HWCART_USE_HWLOC
 #include <hwloc.h>
 #include <hwloc/shmem.h>
 

@@ -29,12 +29,21 @@ else ()
    message(STATUS "Using OpenMPI hardware locality features. Can only compile using OpenMPI.")
 endif (HWCART_USE_HWLOC)
 
+# main shared lib
 add_library(hwcart SHARED)
 add_library(HWCART::hwcart ALIAS hwcart)
 target_include_directories(hwcart PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 target_link_libraries (hwcart PUBLIC MPI::MPI_C)
+
+# Fortran bindings
+option (HWCART_USE_FORTRAN "Enable Fortran bindings" OFF)
+if (HWCART_USE_FORTRAN)
+  enable_language(Fortran)
+  add_library(hwcart_f SHARED)
+  target_link_libraries (hwcart_f PUBLIC hwcart)
+endif(HWCART_USE_FORTRAN)
 
 add_subdirectory(src)
 

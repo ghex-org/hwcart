@@ -109,14 +109,12 @@ int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_
     return retval;
 }
 
-
 int hwcart_free(hwcart_topo_t *hwtopo, MPI_Comm *hwcart_comm)
 {
     int res = hwcart_free_hwtopo(hwtopo);
     HWCART_MPI_CALL( MPI_Comm_free(hwcart_comm) );
     return res;
 }
-
 
 int  hwcart_rank2coord(MPI_Comm comm, int *dims, int rank, hwcart_order_t order, int *coord)
 {
@@ -400,3 +398,46 @@ void hwcart_split_type_to_name(int split_type, char *name) {
         break;
     }
 }
+
+
+#ifdef HWCART_USE_FORTRAN
+
+/* Fortran versions */
+int hwcart_create_f(hwcart_topo_t hwtopo, int mpi_comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t order, int *hwcart_comm_out)
+{
+    MPI_Comm in_comm = MPI_Comm_f2c(mpi_comm), out_comm;
+    int retval = hwcart_create(hwtopo, in_comm, nlevels, domain, topo, order, &out_comm);
+    *hwcart_comm_out = MPI_Comm_c2f(out_comm);
+    return retval;
+}
+
+
+int hwcart_free_f(hwcart_topo_t *hwtopo, int *hwcart_comm)
+{
+    int res = hwcart_free_hwtopo(hwtopo);
+    *hwtopo = NULL;
+    MPI_Comm in_comm = MPI_Comm_f2c(*hwcart_comm);
+    *hwcart_comm = MPI_Comm_c2f(MPI_COMM_NULL);
+    HWCART_MPI_CALL( MPI_Comm_free(&in_comm) );
+    return res;
+}
+
+int hwcart_print_rank_topology_f(hwcart_topo_t hwtopo, int comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t order)
+{
+    MPI_Comm in_comm = MPI_Comm_f2c(comm);
+    return hwcart_print_rank_topology(hwtopo, in_comm, nlevels, domain, topo, order);
+}
+
+int hwcart_rank2coord_f(int comm, int *dims, int rank, hwcart_order_t order, int *coord_out)
+{
+    MPI_Comm in_comm = MPI_Comm_f2c(comm);
+    return hwcart_rank2coord(in_comm, dims, rank, order, coord_out);
+}
+
+int hwcart_coord2rank_f(int comm, int *dims, int *periodic, int *coord, hwcart_order_t order, int *rank_out)
+{
+    MPI_Comm in_comm = MPI_Comm_f2c(comm);
+    return hwcart_coord2rank(in_comm, dims, periodic, coord, order, rank_out);
+}
+
+#endif

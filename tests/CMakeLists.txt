@@ -1,5 +1,13 @@
 add_executable(hwcart_test test.c)
 
+if (HWCART_USE_FORTRAN)
+  add_executable(hwcart_test_f test.f90)
+  target_include_directories(hwcart_test_f PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+    $<INSTALL_INTERFACE:include>)
+  target_link_libraries (hwcart_test_f PUBLIC hwcart hwcart_f)
+endif (HWCART_USE_FORTRAN)  
+
 # mark RPATH to be used when installing, but only if it's not a system directory
 list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
 if("${isSystemDir}" STREQUAL "-1")
