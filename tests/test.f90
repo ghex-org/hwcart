@@ -1,4 +1,4 @@
-PROGRAM test_halo_exchange
+PROGRAM hwcart_test_f
   use mpi
   use hwcart_mod
 
@@ -8,29 +8,30 @@ PROGRAM test_halo_exchange
   integer :: hwcart_comm
   integer :: ierr
 
-  ! integer, parameter :: NLEVELS=5
+  integer, parameter :: NLEVELS=5
+  integer, dimension(:), target :: domain(NLEVELS) = [   &
+    HWCART_MD_CORE,   &
+    HWCART_MD_L3CACHE,&
+    HWCART_MD_NUMA,   &
+    HWCART_MD_SOCKET, &
+    HWCART_MD_NODE]
+
+  integer, dimension(:,:), target :: topo(3,NLEVELS) = reshape([&
+    4, 1, 1, & ! core grid 
+    1, 2, 2, & ! l3cache grid
+    1, 2, 2, & ! numa grid
+    1, 2, 1, & ! socket grid
+    1, 1, 1],& ! node grid
+    shape(topo))
+
+  ! integer, parameter :: NLEVELS=2
   ! integer, dimension(:), target :: domain(NLEVELS) = [   &
   !   HWCART_MD_CORE,   &
-  !   HWCART_MD_L3CACHE,&
-  !   HWCART_MD_NUMA,   &
-  !   HWCART_MD_SOCKET, &
   !   HWCART_MD_NODE]
 
   ! integer, dimension(:), target :: topo(3*NLEVELS) = [&
-  !   4, 1, 1, & ! core grid 
-  !   1, 2, 2, & ! l3cache grid
-  !   1, 2, 2, & ! numa grid
-  !   1, 2, 1, & ! socket grid
+  !   2, 2, 1, & ! core grid 
   !   1, 1, 1]   ! node grid
-
-  integer, parameter :: NLEVELS=2
-  integer, dimension(:), target :: domain(NLEVELS) = [   &
-    HWCART_MD_CORE,   &
-    HWCART_MD_NODE]
-
-  integer, dimension(:), target :: topo(3*NLEVELS) = [&
-    2, 2, 1, & ! core grid 
-    1, 1, 1]   ! node grid
 
   integer :: order = HWCartOrderZYX
   integer :: hwcart_rank, nbleft, nbright
@@ -39,7 +40,7 @@ PROGRAM test_halo_exchange
   integer, dimension(:) :: coord(3)
 
   ! global rank dimensions
-  gdim = product(reshape(topo, [3,NLEVELS]), 2)
+  gdim = product(topo, 2)
 
   call MPI_Init(ierr);
 
@@ -49,9 +50,9 @@ PROGRAM test_halo_exchange
     call exit(1)
   end if
   
-  ierr = hwcart_create(hwcart_topo, MPI_COMM_WORLD, NLEVELS, domain, topo, order, hwcart_comm)
+  ierr = hwcart_create(hwcart_topo, MPI_COMM_WORLD, domain, topo, order, hwcart_comm)
   if (ierr == 0) then
-    ierr = hwcart_print_rank_topology(hwcart_topo, hwcart_comm, NLEVELS, domain, topo, order);
+    ierr = hwcart_print_rank_topology(hwcart_topo, hwcart_comm, domain, topo, order);
     call MPI_Barrier(hwcart_comm, ierr)
 
     ! get our cartesian coordinates
@@ -70,4 +71,4 @@ PROGRAM test_halo_exchange
   end if
   
   call MPI_Finalize(ierr);
-END PROGRAM test_halo_exchange
+END PROGRAM hwcart_test_f

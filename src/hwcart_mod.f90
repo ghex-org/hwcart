@@ -1,6 +1,7 @@
 MODULE hwcart_mod
   use iso_c_binding
-
+  use mpi
+  
   implicit none
 
   enum, bind(C)
@@ -89,29 +90,31 @@ MODULE hwcart_mod
   end interface
 CONTAINS
 
-  function hwcart_create(hwtopo, mpi_comm, nlevels, domain, topo, cart_order, hwcart_comm_out)
+  function hwcart_create(hwtopo, mpi_comm, domain, topo, cart_order, hwcart_comm_out)
     type(hwcart_topo_t), value :: hwtopo
     integer, value :: mpi_comm
-    integer, value :: nlevels
     integer, dimension(:), target :: domain
-    integer, dimension(:), target :: topo
+    integer, dimension(:,:), target :: topo
     integer, value :: cart_order
     integer :: hwcart_comm_out
     integer :: hwcart_create
-    
+    integer :: nlevels
+
+    nlevels = size(domain)
     hwcart_create = hwcart_create_f(hwtopo, mpi_comm, nlevels, c_loc(domain), c_loc(topo), cart_order, hwcart_comm_out)
   end function hwcart_create
 
-  function hwcart_print_rank_topology(hwtopo, mpi_comm, nlevels, domain, topo, cart_order)
+  function hwcart_print_rank_topology(hwtopo, mpi_comm, domain, topo, cart_order)
     type(hwcart_topo_t), value :: hwtopo
     integer, value :: mpi_comm
-    integer, value :: nlevels
     integer, dimension(:), target :: domain
-    integer, dimension(:), target :: topo
+    integer, dimension(:,:), target :: topo
     integer, value :: cart_order
     integer :: hwcart_comm_out
     integer :: hwcart_print_rank_topology
+    integer :: nlevels
     
+    nlevels = size(domain)
     hwcart_print_rank_topology = hwcart_print_rank_topology_f(hwtopo, mpi_comm, nlevels, c_loc(domain), c_loc(topo), cart_order)
   end function hwcart_print_rank_topology
 
