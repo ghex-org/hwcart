@@ -41,8 +41,6 @@ target_link_libraries (hwcart PUBLIC MPI::MPI_C)
 option (HWCART_USE_FORTRAN "Enable Fortran bindings" OFF)
 if (HWCART_USE_FORTRAN)
   enable_language(Fortran)
-  add_library(hwcart_f SHARED)
-  target_link_libraries (hwcart_f PUBLIC hwcart)
 endif(HWCART_USE_FORTRAN)
 
 add_subdirectory(src)

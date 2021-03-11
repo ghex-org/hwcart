@@ -5,7 +5,7 @@ if (HWCART_USE_FORTRAN)
   target_include_directories(hwcart_test_f PUBLIC
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
     $<INSTALL_INTERFACE:include>)
-  target_link_libraries (hwcart_test_f PUBLIC hwcart hwcart_f)
+  target_link_libraries (hwcart_test_f PUBLIC hwcart)
 endif (HWCART_USE_FORTRAN)  
 
 # mark RPATH to be used when installing, but only if it's not a system directory

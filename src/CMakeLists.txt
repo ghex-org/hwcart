@@ -9,7 +9,7 @@ else ()
 endif (HWCART_USE_HWLOC)
 
 if (HWCART_USE_FORTRAN)
-  target_sources(hwcart_f PRIVATE hwcart_mod.f90)
+  target_sources(hwcart PRIVATE hwcart_mod.f90)
   target_compile_definitions(hwcart PUBLIC HWCART_USE_FORTRAN)
 endif(HWCART_USE_FORTRAN)
 
