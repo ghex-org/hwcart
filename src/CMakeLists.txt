@@ -10,6 +10,7 @@ endif (HWCART_USE_HWLOC)
 
 if (HWCART_USE_FORTRAN)
   target_sources(hwcart PRIVATE hwcart_mod.f90)
+  target_include_directories (hwcart PUBLIC ${MPI_Fortran_INCLUDE_DIRS})
   target_compile_definitions(hwcart PUBLIC HWCART_USE_FORTRAN)
 endif(HWCART_USE_FORTRAN)
 

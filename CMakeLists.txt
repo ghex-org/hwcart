@@ -15,10 +15,16 @@ endif()
 add_compile_definitions(_GNU_SOURCE)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+# Fortran bindings
+option (HWCART_USE_FORTRAN "Enable Fortran bindings" OFF)
+if (HWCART_USE_FORTRAN)
+  enable_language(Fortran)
+endif(HWCART_USE_FORTRAN)
+
 find_package(MPI REQUIRED)
 
 # do we use HWLOC?
-option (HWCART_USE_HWLOC "use hwloc" OFF)
+option (HWCART_USE_HWLOC "use hwloc" ON)
 if (HWCART_USE_HWLOC)
    find_package(HWLOC)
    if (HWLOC_FOUND)
@@ -36,12 +42,6 @@ target_include_directories(hwcart PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 target_link_libraries (hwcart PUBLIC MPI::MPI_C)
-
-# Fortran bindings
-option (HWCART_USE_FORTRAN "Enable Fortran bindings" OFF)
-if (HWCART_USE_FORTRAN)
-  enable_language(Fortran)
-endif(HWCART_USE_FORTRAN)
 
 add_subdirectory(src)
 
