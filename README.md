@@ -35,6 +35,8 @@ communicator, in which the neigoboring ranks are placed close to each other in
 the complex memory hierarchy. This is done level by level, starting from the lowest
 desired level. 
 
+For installation instructions see [Installation](INSTALL.md).
+
 ## Example
 Let's assume we want to start 128 ranks per compute node, on a total of
 1024 compute nodes. First, you define the split granularity, i.e., which memory domain
