@@ -33,9 +33,12 @@ the same NUMA node, and 4 NUMA-nodes are located on a single socket.
 the memory locality of the hardware and creates an equivalent of the MPI Cartesian
 communicator, in which the neigoboring ranks are placed close to each other in
 the complex memory hierarchy. This is done level by level, starting from the lowest
-desired level. Let's assume we want to start 128 ranks per compute node, on a total of
+desired level. 
+
+## Example
+Let's assume we want to start 128 ranks per compute node, on a total of
 1024 compute nodes. First, you define the split granularity, i.e., which memory domain
-levels are of interest:
+levels are of interest. On the Epyc system this could be:
 
 ```
 #define NLEVELS 5
@@ -47,8 +50,8 @@ levels are of interest:
                                HWCART_MD_NODE
     };
 ```
-On the lowest level 4 cores share an L3 cache. Hence, we can define the core
-grid at the lowest level to be `nx=4, ny=1, nz=1`, `nx=2, ny=2, nz=1`, `nx=2, ny=1, nz=2` or `nx=1, ny=2, nz=2` . 
+On the lowest level 4 cores share an L3 cache. Hence, we can define the rank
+grid at this level to be `nx=4, ny=1, nz=1`, `nx=2, ny=2, nz=1`, `nx=2, ny=1, nz=2` or `nx=1, ny=2, nz=2`. 
 The 4 L3 cache groups that belong to the same NUMA node should now be arranged themselves 
 into a 3D grid. Again, the dimensions can be e.g., `nx=1, ny=2, nz=2`. On each higher level
 the user specifies the grid dimension of the lower-level blocks. The final rak topology
@@ -67,8 +70,10 @@ In terms of a standard MPI Cartesian communicator this would correspond to a `[6
 of ranks. Contrary to the MPI communicator, here it is possible to specify exactly how the
 in-node rank grid should look to achieve best speed and minimize off-node communication.
 
-## Resulting rank placement
-Looking at the above example, here is how the rank grid looks on a single compute node, on the socket level:
+
+## Example: rank placement
+For the topology described in [Example](#example), here is how the rank grid looks on a single compute node, 
+on the socket level:
 ```
 Level 3 HWCART_MD_SOCKET
 
@@ -153,18 +158,56 @@ Level 2 HWCART_MD_NUMA
 There are 8 NUMA nodes on this 2-socket system, and the printout above shows which ranks
 are bound to which NUMA node.
 
+
+## Rank numbering
+Consider 4 ranks running within the same L3 cache domain, arranged into a grid of size `[2,2,1]`. 
+These are two possible rank numberings:
+
+```
+2 3
+0 1
+```
+or 
+```
+0 2
+1 3
+```
+In short, `hwcart` converts a 3-dimensional Cartesian coordinate of a rank into a linear rank id dimension by dimension.
+The order in which it is done can is defined by the user. In the first example above the order is XY, in the second - YX.
+
+For 3D grids 6 different order types are defined (`hwcart_order_t` in `hwcart.h`), e.g., `HWCartOrderXYZ`, or `HWCartOrderZYX`. 
+Note that while the order will only affect rank numbering and not placement, for real-world applications 
+this can have a measurable impact on performance. For example, it may affect the order in which applications
+perform certain computations, or communication.
+
+
 ## Cartesian communicator API
-`hwcart` provides functions to obtain a Cartesian index from the MPI rank:
+`hwcart` is initialized using
+```
+int hwcart_init(hwcart_topo_t *hwtopo_out);
+```
+This call returns a pointer to hardware information. When no longer needed, the hw topology information
+can be freed by 
+```
+int hwcart_topo_free(hwcart_topo_t *hwtopo);
+```
+
+A `hwcart` communicator is created based on an existing MPI communicator (e.g., `MPI_COMM_WORLD`):
+```
+int hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t cart_order, MPI_Comm *hwcart_comm_out);
+```
+It can be freed when no longer needed:
+```
+int hwcart_comm_free(MPI_Comm *hwcart_comm);
+```
+
+Most importantly, `hwcart` provides functions to obtain a Cartesian index from the MPI rank:
 
 ```
 hwcart_rank2coord(MPI_Comm hwcart_comm, int *dims, int rank, hwcart_order_t cart_order, int *coord_out);
 ```
-and the other way round - to obtain MPI rank ID from a set of Cartesian coordinates:
+and the other way round - to obtain MPI rank id from a set of Cartesian coordinates:
 
 ```
 int hwcart_coord2rank(MPI_Comm hwcart_comm, int *dims, int *periodic, int *coord, hwcart_order_t cart_order, int *rank_out);
 ```
-In the above, `hwcart_order_t` defines the significance of the three dimensions when computing the cartesian indices, e.g., 
-`HWCartOrderXYZ`, or `HWCartOrderZYX`. The order will affect the rank numbering only, not placement. However, 
-our experiments show that for real-world applications this can have a measurable impact on performance,
-as it may affect the order in which applications perform certain computations, or communication.
