@@ -32,7 +32,7 @@ the same NUMA node, and 4 NUMA-nodes are located on a single socket.
 `hwcart` uses [`hwloc`](https://www.open-mpi.org/projects/hwloc/) to understand
 the memory locality of the hardware and creates an equivalent of the MPI Cartesian
 communicator, in which the neigoboring ranks are placed close to each other in
-the complex memory hierarchy. This is done level by level, starring from the lowest
+the complex memory hierarchy. This is done level by level, starting from the lowest
 desired level. Let's assume we want to start 128 ranks per compute node, on a total of
 1024 compute nodes. First, you define the split granularity, i.e., which memory domain
 levels are of interest:
