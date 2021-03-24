@@ -48,7 +48,7 @@ levels are of interest:
     };
 ```
 On the lowest level 4 cores share an L3 cache. Hence, we can define the core
-grid at the lowest level to be `nx=4, ny=1, nz=1`, or `nx=2, ny=1, nz=1`. 
+grid at the lowest level to be `nx=4, ny=1, nz=1`, `nx=2, ny=2, nz=1`, `nx=2, ny=1, nz=2` or `nx=1, ny=2, nz=2` . 
 The 4 L3 cache groups that belong to the same NUMA node should now be arranged themselves 
 into a 3D grid. Again, the dimensions can be e.g., `nx=1, ny=2, nz=2`. On each higher level
 the user specifies the grid dimension of the lower-level blocks. The final rak topology
