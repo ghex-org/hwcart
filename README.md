@@ -169,13 +169,14 @@ These are two possible rank numberings:
 ```
 or 
 ```
-0 2
 1 3
+0 2
 ```
-In short, `hwcart` converts a 3-dimensional Cartesian coordinate of a rank into a linear rank id dimension by dimension.
-The order in which it is done can is defined by the user. In the first example above the order is XY, in the second - YX.
+`hwcart` converts a 3-dimensional Cartesian coordinate of a rank into a linear rank id dimension by dimension.
+The order in which it is done is defined by the user at initialization time. In the first example above 
+the order is XY, in the second - YX.
 
-For 3D grids 6 different order types are defined (`hwcart_order_t` in `hwcart.h`), e.g., `HWCartOrderXYZ`, or `HWCartOrderZYX`. 
+For 3D grids 6 different order types are defined (see `hwcart_order_t` in `hwcart.h`), e.g., `HWCartOrderXYZ`, or `HWCartOrderZYX`. 
 Note that while the order will only affect rank numbering and not placement, for real-world applications 
 this can have a measurable impact on performance. For example, it may affect the order in which applications
 perform certain computations, or communication.
