@@ -67,6 +67,7 @@ In terms of a standard MPI Cartesian communicator this would correspond to a `[6
 of ranks. Contrary to the MPI communicator, here it is possible to specify exactly how the
 in-node rank grid should look to achieve best speed and minimize off-node communication.
 
+## Resulting rank placement
 Looking at the above example, here is how the rank grid looks on a single compute node, on the socket level:
 ```
 Level 3 HWCART_MD_SOCKET
@@ -108,7 +109,7 @@ Level 3 HWCART_MD_SOCKET
         0   0   0   0
 
 ```
-In the above rank grid, all ranks with the same value are executed on the same memory domain, in this case socket.
+In the above rank grid, all ranks with the same value are executed on the same memory domain - in this case socket.
 Here is how the distribution looks among NUMA nodes:
 ```
 Level 2 HWCART_MD_NUMA
@@ -149,6 +150,8 @@ Level 2 HWCART_MD_NUMA
           0   0   0   0
         0   0   0   0
 ```
+There are 8 NUMA nodes on this 2-socket system, and the printout above shows which ranks
+are bound to which NUMA node.
 
 ## Cartesian communicator API
 `hwcart` provides functions to obtain a Cartesian index from the MPI rank:
