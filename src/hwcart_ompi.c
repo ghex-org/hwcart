@@ -22,7 +22,7 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
 }
 
 
-int  hwcart_free_hwtopo(hwcart_topo_t *hwtopo)
+int  hwcart_topo_free(hwcart_topo_t *hwtopo)
 {
     *hwtopo = NULL;
     return 0;

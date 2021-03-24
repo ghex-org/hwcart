@@ -36,12 +36,16 @@ MODULE hwcart_mod
        type(hwcart_topo_t), intent(out) :: hwcart_topo
      end function hwcart_init
 
-     subroutine hwcart_free(hwcart_topo, hwcart_comm) bind(C, name="hwcart_free_f")
+     subroutine hwcart_topo_free(hwcart_topo) bind(C)
        use iso_c_binding
        import hwcart_topo_t
        type(hwcart_topo_t) :: hwcart_topo
+     end subroutine hwcart_topo_free
+
+     subroutine hwcart_comm_free(hwcart_comm) bind(C, name="hwcart_comm_free_f")
+       use iso_c_binding
        integer :: hwcart_comm
-     end subroutine hwcart_free
+     end subroutine hwcart_comm_free
 
      function hwcart_create_f(hwtopo, mpi_comm, nlevels, domain, topo, cart_order, hwcart_comm_out) bind(C)
        use iso_c_binding
@@ -55,6 +59,18 @@ MODULE hwcart_mod
        integer :: hwcart_comm_out
        integer :: hwcart_create_f
      end function hwcart_create_f
+     
+     function hwcart_sub_f(hwcart_comm, dims, rank, cart_order, belongs, hwcart_comm_out) bind(C)
+       use iso_c_binding
+       import hwcart_topo_t
+       integer, value :: hwcart_comm
+       type(c_ptr), value :: dims
+       integer, value :: rank
+       integer, value :: cart_order
+       type(c_ptr), value :: belongs
+       integer :: hwcart_comm_out
+       integer :: hwcart_sub_f
+     end function hwcart_sub_f
      
      function hwcart_print_rank_topology_f(hwtopo, mpi_comm, nlevels, domain, topo, cart_order) bind(C)
        use iso_c_binding
@@ -103,6 +119,18 @@ CONTAINS
     nlevels = size(domain)
     hwcart_create = hwcart_create_f(hwtopo, mpi_comm, nlevels, c_loc(domain), c_loc(topo), cart_order, hwcart_comm_out)
   end function hwcart_create
+ 
+  function hwcart_sub(hwcart_comm, dims, rank, cart_order, belongs, hwcart_comm_out)
+    integer, value :: hwcart_comm
+    integer, dimension(:), target :: dims(3)
+    integer, value :: rank
+    integer, value :: cart_order
+    logical, dimension(:), target :: belongs(3)
+    integer :: hwcart_comm_out
+    integer :: hwcart_sub
+
+    hwcart_sub = hwcart_sub_f(hwcart_comm, c_loc(dims), rank, cart_order, c_loc(belongs), hwcart_comm_out)
+  end function hwcart_sub
 
   function hwcart_print_rank_topology(hwtopo, mpi_comm, domain, topo, cart_order)
     type(hwcart_topo_t), value :: hwtopo
@@ -134,7 +162,7 @@ CONTAINS
     use iso_c_binding
     integer, value :: hwcart_comm
     integer, dimension(:), target :: dims(3)
-    integer, dimension(:), target :: periodic(3)
+    logical, dimension(:), target :: periodic(3)
     integer, dimension(:), target :: coord(3)
     integer, value :: cart_order
     integer :: rank_out

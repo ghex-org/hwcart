@@ -109,12 +109,45 @@ int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_
     return retval;
 }
 
-int hwcart_free(hwcart_topo_t *hwtopo, MPI_Comm *hwcart_comm)
+
+int hwcart_comm_free(MPI_Comm *hwcart_comm)
 {
-    int res = hwcart_free_hwtopo(hwtopo);
-    HWCART_MPI_CALL( MPI_Comm_free(hwcart_comm) );
-    return res;
+    if(hwcart_comm){
+      HWCART_MPI_CALL( MPI_Comm_free(hwcart_comm) );
+    }
+    return 0;
 }
+
+
+int  hwcart_sub(MPI_Comm comm, int *dims, int rank, hwcart_order_t order, int *belongs, MPI_Comm *hwcart_comm_out)
+{
+  int topo = -1, color;
+  int coord[3], periodic[3] = {0};
+
+  // check if this is a cartesian communicator
+  if (comm != MPI_COMM_NULL) {
+    HWCART_MPI_CALL( MPI_Topo_test(comm, &topo) );
+  }
+
+  if (topo != MPI_CART) {
+
+    // Find ranks belonging to the new communicator based on each rank's cartesian coordinates.
+    // color is computed by zeroing out 'belongs' in the cartesian coordinate of each rank
+    // and then computing the 'collapsed' rank by coord2rank
+    hwcart_rank2coord(comm, dims, rank, order, coord);
+    coord[0] = coord[0]*(belongs[0]==0);
+    coord[1] = coord[1]*(belongs[1]==0);
+    coord[2] = coord[2]*(belongs[2]==0);
+    hwcart_coord2rank(comm, dims, periodic, coord, order, &color);
+
+    // create the new communicator
+    HWCART_MPI_CALL( MPI_Comm_split(comm, color, 0, hwcart_comm_out) );
+  } else {
+    HWCART_MPI_CALL( MPI_Cart_sub(comm, belongs, hwcart_comm_out) );
+  }
+  return 0;
+}
+
 
 int  hwcart_rank2coord(MPI_Comm comm, int *dims, int rank, hwcart_order_t order, int *coord)
 {
@@ -412,14 +445,24 @@ int hwcart_create_f(hwcart_topo_t hwtopo, int mpi_comm, int nlevels, hwcart_spli
 }
 
 
-int hwcart_free_f(hwcart_topo_t *hwtopo, int *hwcart_comm)
+int  hwcart_sub_f(int mpi_comm, int *dims, int rank, hwcart_order_t order, int *belongs, int *hwcart_comm_out)
 {
-    int res = hwcart_free_hwtopo(hwtopo);
-    *hwtopo = NULL;
-    MPI_Comm in_comm = MPI_Comm_f2c(*hwcart_comm);
-    *hwcart_comm = MPI_Comm_c2f(MPI_COMM_NULL);
-    HWCART_MPI_CALL( MPI_Comm_free(&in_comm) );
-    return res;
+    MPI_Comm in_comm = MPI_Comm_f2c(mpi_comm), out_comm;
+    int retval = hwcart_sub(in_comm, dims, rank, order, belongs, &out_comm);
+    *hwcart_comm_out = MPI_Comm_c2f(out_comm);
+    return retval;
+}
+
+int hwcart_comm_free_f(int *hwcart_comm)
+{
+    if(hwcart_comm){
+        MPI_Comm in_comm = MPI_Comm_f2c(*hwcart_comm);
+        *hwcart_comm = MPI_Comm_c2f(MPI_COMM_NULL);
+	if(in_comm != MPI_COMM_NULL){
+	  HWCART_MPI_CALL( MPI_Comm_free(&in_comm) );
+	}
+    }
+    return 0;
 }
 
 int hwcart_print_rank_topology_f(hwcart_topo_t hwtopo, int comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t order)
