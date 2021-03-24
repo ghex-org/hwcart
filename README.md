@@ -35,6 +35,7 @@ communicator, in which the neigoboring ranks are placed close to each other in
 the complex memory hierarchy. This is done level by level, starting from the lowest
 desired level. 
 
+## Installing `hwcart`
 For installation instructions see [Installation](INSTALL.md).
 
 ## Example
