@@ -174,11 +174,13 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
 }
 
 
-int  hwcart_free_hwtopo(hwcart_topo_t *hwtopo)
+int  hwcart_topo_free(hwcart_topo_t *hwtopo)
 {
-    hwloc_topology_destroy((*hwtopo)->topo);
-    free(*hwtopo);
-    *hwtopo = NULL;
+    if(hwtopo && (*hwtopo)){
+        hwloc_topology_destroy((*hwtopo)->topo);
+        free(*hwtopo);
+        *hwtopo = NULL;
+    }
     return 0;
 }
 

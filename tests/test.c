@@ -41,7 +41,8 @@ int main(int argc, char *argv[])
     
     if(!hwcart_create(hwtopo, MPI_COMM_WORLD, NLEVELS, domain, topo, order, &hwcart_comm)){
         hwcart_print_rank_topology(hwtopo, hwcart_comm, NLEVELS, domain, topo, order);
-        hwcart_free(&hwtopo, &hwcart_comm);
+	hwcart_comm_free(&hwcart_comm);
+        hwcart_topo_free(&hwtopo);
     }
 
     MPI_Finalize();
