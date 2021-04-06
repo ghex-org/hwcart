@@ -62,7 +62,7 @@ int hwcart_remap_ranks(MPI_Comm comm, int nlevels, hwcart_split_t *domain, int *
 }
 
 
-int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t order, MPI_Comm *hwcart_comm_out)
+int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_split_t *domain, int *topo, int *periodic, hwcart_order_t order, MPI_Comm *hwcart_comm_out)
 {
     int retval;
     int *level_rank;
@@ -94,7 +94,14 @@ int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_
         return retval;
     }
 
-    retval = hwcart_remap_ranks(mpi_comm, nlevels, domain, topo, level_rank, order, hwcart_comm_out);
+    if(0){
+        MPI_Comm temp_comm;
+        retval = hwcart_remap_ranks(mpi_comm, nlevels, domain, topo, level_rank, order, &temp_comm);
+        HWCART_MPI_CALL( MPI_Cart_create(temp_comm, 3, gdim, periodic, 0, hwcart_comm_out) );
+        HWCART_MPI_CALL( MPI_Comm_free(&temp_comm) );
+    } else {
+        retval = hwcart_remap_ranks(mpi_comm, nlevels, domain, topo, level_rank, order, hwcart_comm_out);
+    }
 
 #ifdef DEBUG
     int comm_rank, new_rank;
@@ -438,10 +445,10 @@ void hwcart_split_type_to_name(int split_type, char *name) {
 /* Fortran versions */
 int hwcart_create_f(hwcart_topo_t hwtopo, int mpi_comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t order, int *hwcart_comm_out)
 {
-    MPI_Comm in_comm = MPI_Comm_f2c(mpi_comm), out_comm;
-    int retval = hwcart_create(hwtopo, in_comm, nlevels, domain, topo, order, &out_comm);
-    *hwcart_comm_out = MPI_Comm_c2f(out_comm);
-    return retval;
+    /* MPI_Comm in_comm = MPI_Comm_f2c(mpi_comm), out_comm; */
+    /* int retval = hwcart_create(hwtopo, in_comm, nlevels, domain, topo, order, &out_comm); */
+    /* *hwcart_comm_out = MPI_Comm_c2f(out_comm); */
+    /* return retval; */
 }
 
 

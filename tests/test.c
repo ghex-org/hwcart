@@ -20,7 +20,9 @@ int main(int argc, char *argv[])
                            1, 2, 1, // socket grid
                            1, 1, 1, // node grid
     };
-
+    
+    int periodic[3] = {1, 1, 1};
+    
     int comm_rank, comm_size;
     hwcart_order_t order = HWCartOrderXYZ;
     hwcart_topo_t hwtopo;
@@ -39,7 +41,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
     
-    if(!hwcart_create(hwtopo, MPI_COMM_WORLD, NLEVELS, domain, topo, order, &hwcart_comm)){
+    if(!hwcart_create(hwtopo, MPI_COMM_WORLD, NLEVELS, domain, topo, periodic, order, &hwcart_comm)){
         hwcart_print_rank_topology(hwtopo, hwcart_comm, NLEVELS, domain, topo, order);
 	hwcart_comm_free(&hwcart_comm);
         hwcart_topo_free(&hwtopo);
