@@ -35,6 +35,8 @@ int hwcart_init(hwcart_topo_t *hwtopo_out);
 int hwcart_topo_free(hwcart_topo_t *hwtopo);
 
 int hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t cart_order, MPI_Comm *hwcart_comm_out);
+int  hwcart2mpicart(MPI_Comm hwcart_comm, int nlevels, int *topo, int *periodic, hwcart_order_t cart_order, MPI_Comm *mpicart_comm_out);
+
 int hwcart_sub(MPI_Comm comm, int *dims, int rank, hwcart_order_t order, int *belongs, MPI_Comm *hwcart_comm_out);
 int hwcart_comm_free(MPI_Comm *hwcart_comm);
 

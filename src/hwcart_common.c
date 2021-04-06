@@ -110,6 +110,38 @@ int  hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_
 }
 
 
+// Convert a HWCART communicator to a native MPI_Cart communicator.
+// Dimension order will be set to MPI order (ZYX). All standard MPI_Cart functions
+// (MPI_Cart_shift, MPI_Cart_sub, MPI_Cart_rank, etc.) can be used on mpicart_com.
+int hwcart2mpicart(MPI_Comm hwcart_comm, int nlevels, int *topo, int *periodic, hwcart_order_t cart_order, MPI_Comm *mpicart_comm_out)
+{
+    int ii, gdim[3] = {1,1,1};
+    for(ii=0; ii<nlevels; ii++){
+        gdim[0] *= topo[ii*3+0];
+        gdim[1] *= topo[ii*3+1];
+        gdim[2] *= topo[ii*3+2];
+    }
+
+    if(cart_order != HWCartOrderZYX) {
+	
+	// convert rank numbering to MPI_Cart order (ZYX)
+	int coord[3], comm_rank, mpi_rank;
+	HWCART_MPI_CALL( MPI_Comm_rank(hwcart_comm, &comm_rank) );
+	hwcart_rank2coord(hwcart_comm, gdim, comm_rank, cart_order, coord);
+	hwcart_coord2rank(hwcart_comm, gdim, periodic, coord, HWCartOrderZYX, &mpi_rank);
+	
+	// remap rank ids and create an MPI Cartesian communicator
+	MPI_Comm temp_comm;
+	HWCART_MPI_CALL( MPI_Comm_split(hwcart_comm, 0, mpi_rank, &temp_comm) );
+	HWCART_MPI_CALL( MPI_Cart_create(temp_comm, 3, gdim, periodic, 0, mpicart_comm_out) );
+	HWCART_MPI_CALL( MPI_Comm_free(&temp_comm) );    
+    } else {
+	HWCART_MPI_CALL( MPI_Cart_create(hwcart_comm, 3, gdim, periodic, 0, mpicart_comm_out) );
+    }
+    return 0;
+}
+
+
 int hwcart_comm_free(MPI_Comm *hwcart_comm)
 {
     if(hwcart_comm){
@@ -205,31 +237,8 @@ int  hwcart_rank2coord(MPI_Comm comm, int *dims, int rank, hwcart_order_t order,
 
 int  hwcart_coord2rank(MPI_Comm comm, int *dims, int *periodic, int *coord, hwcart_order_t order, int *rank_out)
 {
-    int tcoord[3], ii, topo;
-
-    // apply periodicity inside a temporary array
-    tcoord[0] = coord[0];
-    tcoord[1] = coord[1];
-    tcoord[2] = coord[2];
-
-    // wrap-around negative cartesian indices.
-    // TODO: currently only correctly handles -1 and dim
-    for(ii=0; ii<3; ii++){
-        if(tcoord[ii] < 0){
-            if(!periodic[ii] || tcoord[ii]!=-1){
-                *rank_out = MPI_PROC_NULL;
-                return 0;
-            }
-            tcoord[ii] = dims[ii]-1;
-        }
-        if(tcoord[ii] >= dims[ii]){
-            if(!periodic[ii] || tcoord[ii]>dims[ii]){
-                *rank_out = MPI_PROC_NULL;
-                return 0;
-            }
-            tcoord[ii] = 0;
-        }
-    }
+    int tcoord[3], ii;
+    int topo;
 
     // check if this is a cartesian communicator
     if (comm == MPI_COMM_NULL){
@@ -239,6 +248,30 @@ int  hwcart_coord2rank(MPI_Comm comm, int *dims, int *periodic, int *coord, hwca
     }
 
     if (topo!=MPI_CART) {
+
+	// apply periodicity inside a temporary array
+	tcoord[0] = coord[0];
+	tcoord[1] = coord[1];
+	tcoord[2] = coord[2];
+
+	// wrap-around negative cartesian indices.
+	// TODO: currently only correctly handles -1 and dim
+	for(ii=0; ii<3; ii++){
+	    if(tcoord[ii] < 0){
+		if(!periodic[ii] || tcoord[ii]!=-1){
+		    *rank_out = MPI_PROC_NULL;
+		    return 0;
+		}
+		tcoord[ii] = dims[ii]-1;
+	    }
+	    if(tcoord[ii] >= dims[ii]){
+		if(!periodic[ii] || tcoord[ii]>dims[ii]){
+		    *rank_out = MPI_PROC_NULL;
+		    return 0;
+		}
+		tcoord[ii] = 0;
+	    }
+	}
 
         switch (order) {
         case (HWCartOrderXYZ):
@@ -264,7 +297,7 @@ int  hwcart_coord2rank(MPI_Comm comm, int *dims, int *periodic, int *coord, hwca
             return -1;
         }
     } else {
-        HWCART_MPI_CALL( MPI_Cart_rank(comm, tcoord, rank_out) );
+        HWCART_MPI_CALL( MPI_Cart_rank(comm, coord, rank_out) );
     }
     return 0;
 }
@@ -444,6 +477,13 @@ int hwcart_create_f(hwcart_topo_t hwtopo, int mpi_comm, int nlevels, hwcart_spli
     return retval;
 }
 
+int hwcart2mpicart_f(int hwcart_comm, int nlevels, int *topo, int *periodic, hwcart_order_t cart_order, int *mpicart_comm_out)
+{
+    MPI_Comm in_comm = MPI_Comm_f2c(hwcart_comm), out_comm;
+    int retval = hwcart2mpicart(in_comm, nlevels, topo, periodic, cart_order, &out_comm);
+    *mpicart_comm_out = MPI_Comm_c2f(out_comm);
+    return retval;
+}
 
 int  hwcart_sub_f(int mpi_comm, int *dims, int rank, hwcart_order_t order, int *belongs, int *hwcart_comm_out)
 {

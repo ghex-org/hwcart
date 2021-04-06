@@ -1,21 +1,38 @@
-add_executable(hwcart_test test.c)
+set(_tests test_hwcart test_hwcart2mpicart)
+foreach (_t ${_tests})
+  add_executable(${_t} ${_t}.c)
+
+  # mark RPATH to be used when installing, but only if it's not a system directory
+  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+  if("${isSystemDir}" STREQUAL "-1")
+    set_property(TARGET ${_t} PROPERTY INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+  endif("${isSystemDir}" STREQUAL "-1")
+
+  target_link_libraries (${_t} PUBLIC ${DEPENDENCY_TARGETS})
+  target_link_libraries (${_t} PUBLIC MPI::MPI_C)
+  target_link_libraries (${_t} PUBLIC hwcart)
+
+  install (TARGETS ${_t} DESTINATION bin)
+endforeach()
 
 if (HWCART_USE_FORTRAN)
-  add_executable(hwcart_test_f test.f90)
-  target_include_directories(hwcart_test_f PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
-    $<INSTALL_INTERFACE:include>)
-  target_link_libraries (hwcart_test_f PUBLIC hwcart MPI::MPI_Fortran)
+  foreach (_t ${_tests})
+    add_executable(${_t}_f ${_t}.f90 )
+    target_include_directories(${_t}_f PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+      $<INSTALL_INTERFACE:include>)
+
+    # mark RPATH to be used when installing, but only if it's not a system directory
+    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+    if("${isSystemDir}" STREQUAL "-1")
+      set_property(TARGET ${_t} PROPERTY INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+    endif("${isSystemDir}" STREQUAL "-1")
+
+    target_link_libraries (${_t}_f PUBLIC ${DEPENDENCY_TARGETS})
+    target_link_libraries (${_t}_f PUBLIC MPI::MPI_Fortran)
+    target_link_libraries (${_t}_f PUBLIC hwcart)
+
+    install (TARGETS ${_t}_f DESTINATION bin)
+  endforeach()
 endif (HWCART_USE_FORTRAN)  
 
-# mark RPATH to be used when installing, but only if it's not a system directory
-list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-if("${isSystemDir}" STREQUAL "-1")
-  set_property(TARGET hwcart_test PROPERTY INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-endif("${isSystemDir}" STREQUAL "-1")
-
-target_link_libraries (hwcart_test PUBLIC ${DEPENDENCY_TARGETS})
-target_link_libraries (hwcart_test PUBLIC MPI::MPI_C)
-target_link_libraries (hwcart_test PUBLIC hwcart)
-
-install (TARGETS hwcart_test DESTINATION bin)
