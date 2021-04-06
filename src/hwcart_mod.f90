@@ -59,6 +59,17 @@ MODULE hwcart_mod
        integer :: hwcart_comm_out
        integer :: hwcart_create_f
      end function hwcart_create_f
+
+     function hwcart2mpicart_f(hwcart_comm, nlevels, topo, periodic, cart_order, mpicart_comm_out) bind(C)
+       use iso_c_binding
+       integer, value :: hwcart_comm
+       integer, value :: nlevels
+       type(c_ptr), value :: topo
+       type(c_ptr), value :: periodic
+       integer, value :: cart_order
+       integer :: mpicart_comm_out
+       integer :: hwcart2mpicart_f
+     end function hwcart2mpicart_f
      
      function hwcart_sub_f(hwcart_comm, dims, rank, cart_order, belongs, hwcart_comm_out) bind(C)
        use iso_c_binding
@@ -120,6 +131,19 @@ CONTAINS
     hwcart_create = hwcart_create_f(hwtopo, mpi_comm, nlevels, c_loc(domain), c_loc(topo), cart_order, hwcart_comm_out)
   end function hwcart_create
  
+  function hwcart2mpicart(hwcart_comm, topo, periodic, cart_order, mpicart_comm_out)
+    integer, value :: hwcart_comm
+    integer, dimension(:,:), target :: topo
+    logical, dimension(:), target :: periodic(3)
+    integer, value :: cart_order
+    integer :: nlevels
+    integer :: mpicart_comm_out
+    integer :: hwcart2mpicart
+
+    nlevels = size(topo)/3
+    hwcart2mpicart = hwcart2mpicart_f(hwcart_comm, nlevels, c_loc(topo), c_loc(periodic), cart_order, mpicart_comm_out)    
+  end function hwcart2mpicart
+
   function hwcart_sub(hwcart_comm, dims, rank, cart_order, belongs, hwcart_comm_out)
     integer, value :: hwcart_comm
     integer, dimension(:), target :: dims(3)

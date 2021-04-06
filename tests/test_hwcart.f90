@@ -17,21 +17,12 @@ PROGRAM hwcart_test_f
     HWCART_MD_NODE]
 
   integer, dimension(:,:), target :: topo(3,NLEVELS) = reshape([&
-    2, 1, 1, & ! core grid 
-    2, 2, 1, & ! l3cache grid
+    4, 1, 1, & ! core grid 
+    1, 2, 2, & ! l3cache grid
     1, 2, 2, & ! numa grid
-    1, 1, 2, & ! socket grid
+    1, 2, 1, & ! socket grid
     1, 1, 1],& ! node grid
     shape(topo))
-
-  ! integer, parameter :: NLEVELS=2
-  ! integer, dimension(:), target :: domain(NLEVELS) = [   &
-  !   HWCART_MD_CORE,   &
-  !   HWCART_MD_NODE]
-
-  ! integer, dimension(:), target :: topo(3*NLEVELS) = [&
-  !   2, 2, 1, & ! core grid 
-  !   1, 1, 1]   ! node grid
 
   integer :: cart_order = HWCartOrderZYX
   integer :: hwcart_rank, nbleft, nbright
@@ -95,6 +86,8 @@ PROGRAM hwcart_test_f
     call hwcart_comm_free(hwcart_comm_plane)
     call hwcart_comm_free(hwcart_comm)
     call hwcart_topo_free(hwcart_topo)
+  else
+     call exit(1)
   end if
   
   call MPI_Finalize(ierr);
