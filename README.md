@@ -188,30 +188,69 @@ perform certain computations, or communication.
 ## Cartesian communicator API
 `hwcart` is initialized using
 ```
-int hwcart_init(hwcart_topo_t *hwtopo_out);
+int hwcart_init(hwcart_topo_t *hwcart_topo_out);
 ```
 This call returns a pointer to hardware information. When no longer needed, the hw topology information
 can be freed by 
 ```
-int hwcart_topo_free(hwcart_topo_t *hwtopo);
+int hwcart_topo_free(hwcart_topo_t *hwcart_topo);
 ```
 
 A `hwcart` communicator is created based on an existing MPI communicator (e.g., `MPI_COMM_WORLD`):
 ```
-int hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t cart_order, MPI_Comm *hwcart_comm_out);
+int hwcart_create(hwcart_topo_t hwcart_topo, MPI_Comm mpi_comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t cart_order, MPI_Comm *hwcart_comm_out);
 ```
 It can be freed when no longer needed:
 ```
 int hwcart_comm_free(MPI_Comm *hwcart_comm);
 ```
 
-Most importantly, `hwcart` provides functions to obtain a Cartesian index from the MPI rank:
+`hwcart` provides functions to obtain a Cartesian index from the MPI rank:
 
 ```
 hwcart_rank2coord(MPI_Comm hwcart_comm, int *dims, int rank, hwcart_order_t cart_order, int *coord_out);
 ```
-and the other way round - to obtain MPI rank id from a set of Cartesian coordinates:
+and the other way round - to obtain the MPI rank from a set of Cartesian coordinates:
 
 ```
 int hwcart_coord2rank(MPI_Comm hwcart_comm, int *dims, int *periodic, int *coord, hwcart_order_t cart_order, int *rank_out);
+```
+
+It is also possible to convert a `hwcart` communicator to a hardware-aware native MPI Cartesian communicator,
+i.e., one that can be used as an argument to the standard `MPI_Cart_*` functions:
+
+```
+int hwcart2mpicart(MPI_Comm hwcart_comm, int nlevels, int *topo, int *periodic, hwcart_order_t cart_order, MPI_Comm *mpicart_comm_out);
+```
+The resulting `mpicart_comm_out` is created from `hwcart_comm` using `MPI_Cart_create`.
+Since `hwcart_comm` can map Cartesian coordinates to linear rank identifiers using different `cart_order`,
+ranks are first re-mapped to the numbering used by MPI (`ZYX`). By doing this the ability to use
+different ordering schemes is lost, but the resulting MPI communicator retains the
+memory domain locality of `hwcart_comm` and can be used as-is in exisiting MPI applications.
+
+### Full C API
+
+```
+int hwcart_init(hwcart_topo_t *hwcart_topo_out);
+int hwcart_topo_free(hwcart_topo_t *hwcart_topo);
+int hwcart_create(hwcart_topo_t hwcart_topo, MPI_Comm mpi_comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t cart_order, MPI_Comm *hwcart_comm_out);
+int hwcart_comm_free(MPI_Comm *hwcart_comm);
+int hwcart2mpicart(MPI_Comm hwcart_comm, int nlevels, int *topo, int *periodic, hwcart_order_t cart_order, MPI_Comm *mpicart_comm_out);
+int hwcart_sub(MPI_Comm comm, int *dims, int rank, hwcart_order_t order, int *belongs, MPI_Comm *hwcart_comm_out);
+int hwcart_rank2coord(MPI_Comm hwcart_comm, int *dims, int rank, hwcart_order_t cart_order, int *coord_out);
+int hwcart_coord2rank(MPI_Comm hwcart_comm, int *dims, int *periodic, int *coord, hwcart_order_t cart_order, int *rank_out);
+int hwcart_print_rank_topology(hwcart_topo_t hwcart_topo, MPI_Comm comm, int nlevels, hwcart_split_t *domain, int *topo, hwcart_order_t order);
+```
+
+### Full Fortran API
+```
+function hwcart_init(hwcart_topo)
+subroutine hwcart_topo_free(hwcart_topo)
+function hwcart_create(hwcart_topo, mpi_comm, domain, topo, cart_order, hwcart_comm_out) 
+subroutine hwcart_comm_free(hwcart_comm)
+function hwcart2mpicart(hwcart_comm, topo, periodic, cart_order, mpicart_comm_out)
+function hwcart_sub(hwcart_comm, dims, rank, cart_order, belongs, hwcart_comm_out)
+function hwcart_rank2coord(hwcart_comm, dims, rank, cart_order, coord_out)
+function hwcart_coord2rank(hwcart_comm, dims, periodic, coord, cart_order, rank_out)
+function hwcart_print_rank_topology(hwcart_topo, mpi_comm, domain, topo, cart_order)
 ```
