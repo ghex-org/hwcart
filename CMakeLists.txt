@@ -8,8 +8,15 @@ if(NOT CMAKE_BUILD_TYPE) # AND NOT CMAKE_CONFIGURATION_TYPES)
    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
    # Set the possible values of build type for cmake-gui
    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
-   set_property(CACHE CMAKE_C_FLAGS PROPERTY VALUE "-Wall -Wextra -Wpedantic -Wno-unknown-pragmas")
    set_property(CACHE CMAKE_C_FLAGS_RELEASE PROPERTY VALUE "-O3 -DNDEBUG -Wno-unused-parameter")
+endif()
+
+if (CMAKE_C_COMPILER_ID MATCHES "GNU")
+  message(STATUS "C compiler is GNU.")
+  set_property(CACHE CMAKE_C_FLAGS PROPERTY VALUE "-Wall -Wextra -Wpedantic -Wno-unknown-pragmas")
+else ()
+  message(STATUS "C compiler is NOT GNU.")
+  set_property(CACHE CMAKE_C_FLAGS PROPERTY VALUE "-Wall -Wextra")
 endif()
 
 add_compile_definitions(_GNU_SOURCE)
