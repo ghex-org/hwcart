@@ -17,10 +17,10 @@ PROGRAM hwcart_test_hwcart2mpicart_f
     HWCART_MD_NODE]
 
   integer, dimension(:,:), target :: topo(3,NLEVELS) = reshape([&
-    4, 1, 1, & ! core grid 
-    1, 2, 2, & ! l3cache grid
-    1, 2, 2, & ! numa grid
-    1, 2, 1, & ! socket grid
+    2, 2, 1, & ! core grid 
+    1, 1, 1, & ! l3cache grid
+    1, 1, 1, & ! numa grid
+    1, 1, 1, & ! socket grid
     1, 1, 1],& ! node grid
     shape(topo))
 
@@ -42,18 +42,18 @@ PROGRAM hwcart_test_hwcart2mpicart_f
     call exit(1)
   end if
 
-  ierr = hwcart_create(hwcart_topo, MPI_COMM_WORLD, domain, topo, cart_order, hwcart_comm)
+  ierr = hwcart_create(hwcart_topo, MPI_COMM_WORLD, domain, topo, periodic, cart_order, hwcart_comm)
   if (ierr == 0) then
-    ierr = hwcart_print_rank_topology(hwcart_topo, hwcart_comm, domain, topo, cart_order);
+    ierr = hwcart_print_rank_topology(hwcart_topo, hwcart_comm);
 
     ! Convert a HWCART communicator to a native MPI_Cart communicator.
     ! Dimension order will be set to MPI order (ZYX). All standard MPI_Cart functions
     ! (MPI_Cart_shift, MPI_Cart_sub, MPI_Cart_rank, etc.) can be used on mpicart_com.
-    ierr = hwcart2mpicart(hwcart_comm, topo, periodic, cart_order, mpicart_comm)
+    ierr = hwcart2mpicart(hwcart_comm, mpicart_comm)
 
     ! hwcart cartesian coordinates
     call MPI_Comm_rank(hwcart_comm, hwcart_rank, ierr)
-    ierr = hwcart_rank2coord(hwcart_comm, gdim, hwcart_rank, cart_order, hwcart_coord)
+    ierr = hwcart_rank2coord(hwcart_comm, hwcart_rank, hwcart_coord)
     
     ! mpicart cartesian coordinates
     call MPI_Comm_rank(mpicart_comm, mpicart_rank, ierr);

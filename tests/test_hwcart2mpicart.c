@@ -15,10 +15,10 @@ int main(int argc, char *argv[])
                                HWCART_MD_NODE
     };
     int topo[3*NLEVELS] = {
-                           4, 1, 1, // core grid
-                           1, 2, 2, // l3cache grid
-                           1, 2, 2, // numa grid
-                           1, 2, 1, // socket grid
+                           2, 2, 1, // core grid
+                           1, 1, 1, // l3cache grid
+                           1, 1, 1, // numa grid
+                           1, 1, 1, // socket grid
                            1, 1, 1, // node grid
     };
     
@@ -50,20 +50,20 @@ int main(int argc, char *argv[])
         exit(1);
     }
     
-    if(!hwcart_create(hwtopo, MPI_COMM_WORLD, NLEVELS, domain, topo, cart_order, &hwcart_comm)){
-        hwcart_print_rank_topology(hwtopo, hwcart_comm, NLEVELS, domain, topo, cart_order);
+    if(!hwcart_create(hwtopo, MPI_COMM_WORLD, NLEVELS, domain, topo, periodic, cart_order, &hwcart_comm)){
+        hwcart_print_rank_topology(hwtopo, hwcart_comm);
 
 	// Convert a HWCART communicator to a native MPI_Cart communicator.
 	// Dimension order will be set to MPI order (ZYX). All standard MPI_Cart functions
 	// (MPI_Cart_shift, MPI_Cart_sub, MPI_Cart_rank, etc.) can be used on mpicart_com.
-	hwcart2mpicart(hwcart_comm, NLEVELS, topo, periodic, cart_order, &mpicart_comm);
+	hwcart2mpicart(hwcart_comm, &mpicart_comm);
 
 	int  hwcart_coord[3], hwcart_rank;
 	int mpicart_coord[3], mpicart_rank;
 	
 	// hwcart cartesian coordinates
 	MPI_Comm_rank(hwcart_comm, &hwcart_rank);
-	hwcart_rank2coord(hwcart_comm, gdim, hwcart_rank, cart_order, hwcart_coord);
+	hwcart_rank2coord(hwcart_comm, hwcart_rank, hwcart_coord);
 	
 	// mpicart cartesian coordinates
 	MPI_Comm_rank(mpicart_comm, &mpicart_rank);
