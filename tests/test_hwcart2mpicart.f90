@@ -4,7 +4,6 @@ PROGRAM hwcart_test_hwcart2mpicart_f
 
   implicit none
 
-  type(hwcart_topo_t) :: hwcart_topo
   integer :: hwcart_comm, mpicart_comm
   integer :: ierr
 
@@ -36,15 +35,15 @@ PROGRAM hwcart_test_hwcart2mpicart_f
 
   call MPI_Init(ierr);
 
-  ierr = hwcart_init(hwcart_topo)
+  ierr = hwcart_init()
   if (ierr /= 0) then
     call MPI_Finalize(ierr);
     call exit(1)
   end if
 
-  ierr = hwcart_create(hwcart_topo, MPI_COMM_WORLD, domain, topo, periodic, cart_order, hwcart_comm)
+  ierr = hwcart_create(MPI_COMM_WORLD, domain, topo, periodic, cart_order, hwcart_comm)
   if (ierr == 0) then
-    ierr = hwcart_print_rank_topology(hwcart_topo, hwcart_comm);
+    ierr = hwcart_print_rank_topology(hwcart_comm);
 
     ! Convert a HWCART communicator to a native MPI_Cart communicator.
     ! Dimension order will be set to MPI order (ZYX). All standard MPI_Cart functions
@@ -66,10 +65,10 @@ PROGRAM hwcart_test_hwcart2mpicart_f
 
     call MPI_Comm_free(mpicart_comm, ierr)
     call hwcart_comm_free(hwcart_comm)
-    call hwcart_topo_free(hwcart_topo)
   else
      call exit(1)
   end if
   
+  ierr = hwcart_finalize();
   call MPI_Finalize(ierr);
 END PROGRAM hwcart_test_hwcart2mpicart_f

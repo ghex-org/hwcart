@@ -29,12 +29,10 @@ typedef enum {
    - domain and topo are arrays of size nlevels*ndim
 */
 
-typedef struct hwcart_topo_struct_t* hwcart_topo_t;
+int hwcart_init();
+int hwcart_finalize();
 
-int hwcart_init(hwcart_topo_t *hwtopo_out);
-int hwcart_topo_free(hwcart_topo_t *hwtopo);
-
-int hwcart_create(hwcart_topo_t hwtopo, MPI_Comm mpi_comm,
+int hwcart_create(MPI_Comm mpi_comm,
                   int nlevels,
                   hwcart_split_t *domain,
                   int *topo,
@@ -51,6 +49,6 @@ int hwcart_sub(MPI_Comm comm, int rank, int *belongs, MPI_Comm *hwcart_comm_out)
 int hwcart_rank2coord(MPI_Comm hwcart_comm, int rank, int *coord_out);
 int hwcart_coord2rank(MPI_Comm hwcart_comm, int *coord, int *rank_out);
 
-int hwcart_print_rank_topology(hwcart_topo_t hwtopo, MPI_Comm comm);
+int hwcart_print_rank_topology(MPI_Comm comm);
 
 #endif /* _HWCART_H */

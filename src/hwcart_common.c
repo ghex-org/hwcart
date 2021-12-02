@@ -18,6 +18,7 @@ typedef struct {
 } hwcart_cart_topo_t;
 static int topo_attr = -1;
 
+hwcart_topo_t hwcart_get_topo();
 
 static void rank2coord(int *dims, int rank, hwcart_order_t order, int *coord)
 {
@@ -192,8 +193,7 @@ static int is_hwcart_comm(MPI_Comm comm)
 }
 
 
-int hwcart_create(hwcart_topo_t hwtopo,
-                  MPI_Comm mpi_comm,
+int hwcart_create(MPI_Comm mpi_comm,
                   int nlevels,
                   hwcart_split_t *domain,
                   int *topo,
@@ -223,6 +223,8 @@ int hwcart_create(hwcart_topo_t hwtopo,
         fprintf(stderr, "unknown HWCART order argument %d\n", order);
         return -1;        
     }
+
+    hwcart_topo_t hwtopo = hwcart_get_topo();
     
     // verify number of ranks vs. the config
     for(ii=0; ii<nlevels; ii++){
@@ -432,7 +434,7 @@ int  hwcart_coord2rank(MPI_Comm comm, int *coord, int *rank_out)
 }
 
 
-int hwcart_print_rank_topology(hwcart_topo_t hwtopo, MPI_Comm comm)
+int hwcart_print_rank_topology(MPI_Comm comm)
 {
     int *buff;
     int ii;
@@ -445,7 +447,9 @@ int hwcart_print_rank_topology(hwcart_topo_t hwtopo, MPI_Comm comm)
         fprintf(stderr, "hwcart_print_rank_topology: comm is not a HWCART communicator.\n");
         return -1;
     }
-
+    
+    hwcart_topo_t hwtopo = hwcart_get_topo();
+    
     int flag;
     hwcart_cart_topo_t *ptopo = NULL;
     HWCART_MPI_CALL( MPI_Comm_get_attr(comm, topo_attr, &ptopo, &flag) );
@@ -605,8 +609,7 @@ void hwcart_split_type_to_name(int split_type, char *name) {
 #ifdef HWCART_USE_FORTRAN
 
 /* Fortran versions */
-int hwcart_create_f(hwcart_topo_t hwtopo,
-                    int mpi_comm,
+int hwcart_create_f(int mpi_comm,
                     int nlevels,
                     hwcart_split_t *domain,
                     int *topo,
@@ -615,7 +618,7 @@ int hwcart_create_f(hwcart_topo_t hwtopo,
                     int *hwcart_comm_out)
 {
     MPI_Comm in_comm = MPI_Comm_f2c(mpi_comm), out_comm;
-    int retval = hwcart_create(hwtopo, in_comm, nlevels, domain, topo, periodic, order, &out_comm);
+    int retval = hwcart_create(in_comm, nlevels, domain, topo, periodic, order, &out_comm);
     *hwcart_comm_out = MPI_Comm_c2f(out_comm);
     return retval;
 }
@@ -648,10 +651,10 @@ int hwcart_comm_free_f(int *hwcart_comm)
     return 0;
 }
 
-int hwcart_print_rank_topology_f(hwcart_topo_t hwtopo, int comm)
+int hwcart_print_rank_topology_f(int comm)
 {
     MPI_Comm in_comm = MPI_Comm_f2c(comm);
-    return hwcart_print_rank_topology(hwtopo, in_comm);
+    return hwcart_print_rank_topology(in_comm);
 }
 
 int hwcart_rank2coord_f(int comm, int rank, int *coord_out)

@@ -20,6 +20,7 @@ hwloc_obj_type_t hwcart_split_type(hwcart_split_t split_type);
 struct hwcart_topo_struct_t {
     hwloc_topology_t topo;
 };
+static hwcart_topo_t hwtopo = NULL;
 
 
 int load_hwtopo(hwcart_topo_t hwtopo)
@@ -40,7 +41,13 @@ int load_hwtopo(hwcart_topo_t hwtopo)
 }
 
 
-int hwcart_init(hwcart_topo_t *hwtopo_out)
+hwcart_topo_t hwcart_get_topo()
+{
+    return hwtopo;
+}
+
+
+int hwcart_init()
 {
     int res;
     pid_t master_pid;
@@ -50,7 +57,10 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
     MPI_Comm shmem_comm;   
     int rank;
 
-    *hwtopo_out = malloc(sizeof(struct hwcart_topo_struct_t));
+    // already initialized?
+    if(NULL != hwtopo) return 0;
+    
+    hwtopo = malloc(sizeof(struct hwcart_topo_struct_t));
 
     // a single process reads the topo for each compute node
     // the topo is then shared through shared memory
@@ -59,14 +69,14 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
 
     if(rank==0){
 
-        res = load_hwtopo(*hwtopo_out);
+        res = load_hwtopo(hwtopo);
         if(0 != res){
-            free(*hwtopo_out);
-            *hwtopo_out = NULL;
+            free(hwtopo);
+            hwtopo = NULL;
             return res;
         }
 
-        hwloc_shmem_topology_get_length((*hwtopo_out)->topo, &shmem_size, 0);
+        hwloc_shmem_topology_get_length((hwtopo)->topo, &shmem_size, 0);
 
         master_pid = getpid();
         snprintf(shmem_filename, 256, "/dev/shm/hwcart_topo.sm.%i", master_pid);
@@ -97,7 +107,7 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
         munmap(shmem_addr, shmem_size);
 
         // store the topology
-        res = hwloc_shmem_topology_write((*hwtopo_out)->topo, shmem_fd, 0, shmem_addr, shmem_size, 0);
+        res = hwloc_shmem_topology_write((hwtopo)->topo, shmem_fd, 0, shmem_addr, shmem_size, 0);
         if(0 != res){
             fprintf(stderr, "failed to write topology info to shared memory\n");
             close(shmem_fd);
@@ -137,23 +147,23 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
                 fprintf(stderr, "failed to open backing file in shared memory.\n");
 
                 // load the topology
-                res = load_hwtopo(*hwtopo_out);
+                res = load_hwtopo(hwtopo);
                 if(0 != res){
-                    free(*hwtopo_out);
-                    *hwtopo_out = NULL;
+                    free(hwtopo);
+                    hwtopo = NULL;
                     return res;
                 }
                 return 0;
             }
             
-            res = hwloc_shmem_topology_adopt(&(*hwtopo_out)->topo, shmem_fd, 0, shmem_addr, shmem_size, 0);
+            res = hwloc_shmem_topology_adopt(&(hwtopo)->topo, shmem_fd, 0, shmem_addr, shmem_size, 0);
             if(0 != res){
                 // fprintf(stderr, "failed to adopt topology, reading topology directly\n");
                 // load the topology
-                res = load_hwtopo(*hwtopo_out);
+                res = load_hwtopo(hwtopo);
                 if(0 != res){
-                    free(*hwtopo_out);
-                    *hwtopo_out = NULL;
+                    free(hwtopo);
+                    hwtopo = NULL;
                     return res;
                 }
                 return 0;
@@ -163,10 +173,10 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
         }
         
         // load the topology
-        res = load_hwtopo(*hwtopo_out);
+        res = load_hwtopo(hwtopo);
         if(0 != res){
-            free(*hwtopo_out);
-            *hwtopo_out = NULL;
+            free(hwtopo);
+            hwtopo = NULL;
             return res;
         }
     }
@@ -174,12 +184,12 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
 }
 
 
-int  hwcart_topo_free(hwcart_topo_t *hwtopo)
+int hwcart_finalize()
 {
-    if(hwtopo && (*hwtopo)){
-        hwloc_topology_destroy((*hwtopo)->topo);
-        free(*hwtopo);
-        *hwtopo = NULL;
+    if(hwtopo){
+        hwloc_topology_destroy(hwtopo->topo);
+        free(hwtopo);
+        hwtopo = NULL;
     }
     return 0;
 }

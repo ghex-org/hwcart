@@ -26,7 +26,6 @@ int main(int argc, char *argv[])
     
     int comm_rank, comm_size;
     hwcart_order_t cart_order = HWCartOrderZYX;
-    hwcart_topo_t hwtopo;
     MPI_Comm hwcart_comm;
 
     int ii, gdim[3] = {1,1,1};
@@ -44,13 +43,13 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-    if(hwcart_init(&hwtopo)){
+    if(hwcart_init()){
         MPI_Finalize();
         exit(1);
     }
     
-    if(!hwcart_create(hwtopo, MPI_COMM_WORLD, NLEVELS, domain, topo, periodic, cart_order, &hwcart_comm)){
-        hwcart_print_rank_topology(hwtopo, hwcart_comm);
+    if(!hwcart_create(MPI_COMM_WORLD, NLEVELS, domain, topo, periodic, cart_order, &hwcart_comm)){
+        hwcart_print_rank_topology(hwcart_comm);
 	MPI_Barrier(hwcart_comm);
 
 	// get our cartesian coordinates
@@ -93,8 +92,8 @@ int main(int argc, char *argv[])
 	}
 
 	hwcart_comm_free(&hwcart_comm);
-        hwcart_topo_free(&hwtopo);
     } else exit(1);
 
+    hwcart_finalize();
     MPI_Finalize();
 }

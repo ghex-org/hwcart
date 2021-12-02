@@ -24,33 +24,24 @@ MODULE hwcart_mod
      enumerator :: HWCartOrderYXZ
   end enum
   
-  type, bind(c) :: hwcart_topo_t
-     type(c_ptr) :: ptr = c_null_ptr
-  end type hwcart_topo_t
-  
   interface
-     function hwcart_init(hwcart_topo) bind(C)
+     function hwcart_init() bind(C)
        use iso_c_binding
-       import hwcart_topo_t
        integer :: hwcart_init
-       type(hwcart_topo_t), intent(out) :: hwcart_topo
      end function hwcart_init
 
-     subroutine hwcart_topo_free(hwcart_topo) bind(C)
+     function hwcart_finalize() bind(C)
        use iso_c_binding
-       import hwcart_topo_t
-       type(hwcart_topo_t) :: hwcart_topo
-     end subroutine hwcart_topo_free
+       integer :: hwcart_finalize
+     end function hwcart_finalize
 
      subroutine hwcart_comm_free(hwcart_comm) bind(C, name="hwcart_comm_free_f")
        use iso_c_binding
        integer :: hwcart_comm
      end subroutine hwcart_comm_free
 
-     function hwcart_create_f(hwcart_topo, mpi_comm, nlevels, domain, topo, periodic, cart_order, hwcart_comm_out) bind(C)
+     function hwcart_create_f(mpi_comm, nlevels, domain, topo, periodic, cart_order, hwcart_comm_out) bind(C)
        use iso_c_binding
-       import hwcart_topo_t
-       type(hwcart_topo_t), value :: hwcart_topo
        integer, value :: mpi_comm
        integer, value :: nlevels
        type(c_ptr), value :: domain
@@ -77,10 +68,8 @@ MODULE hwcart_mod
        integer :: hwcart_sub_f
      end function hwcart_sub_f
      
-     function hwcart_print_rank_topology_f(hwcart_topo, mpi_comm) bind(C)
+     function hwcart_print_rank_topology_f(mpi_comm) bind(C)
        use iso_c_binding
-       import hwcart_topo_t
-       type(hwcart_topo_t), value :: hwcart_topo
        integer, value :: mpi_comm
        integer :: hwcart_print_rank_topology_f
      end function hwcart_print_rank_topology_f
@@ -102,8 +91,7 @@ MODULE hwcart_mod
   end interface
 CONTAINS
 
-  function hwcart_create(hwcart_topo, mpi_comm, domain, topo, periodic, cart_order, hwcart_comm_out)
-    type(hwcart_topo_t), value :: hwcart_topo
+  function hwcart_create(mpi_comm, domain, topo, periodic, cart_order, hwcart_comm_out)
     integer, value :: mpi_comm
     integer, dimension(:), target :: domain
     integer, dimension(:,:), target :: topo
@@ -115,7 +103,7 @@ CONTAINS
 
     nlevels = size(domain)
     hwcart_create = &
-      hwcart_create_f(hwcart_topo, mpi_comm, nlevels, c_loc(domain), c_loc(topo), c_loc(periodic), cart_order, hwcart_comm_out)
+      hwcart_create_f(mpi_comm, nlevels, c_loc(domain), c_loc(topo), c_loc(periodic), cart_order, hwcart_comm_out)
   end function hwcart_create
  
   function hwcart2mpicart(hwcart_comm, mpicart_comm_out)
@@ -138,13 +126,12 @@ CONTAINS
       hwcart_sub_f(hwcart_comm, rank, c_loc(belongs), hwcart_comm_out)
   end function hwcart_sub
 
-  function hwcart_print_rank_topology(hwcart_topo, hwcart_comm)
-    type(hwcart_topo_t), value :: hwcart_topo
+  function hwcart_print_rank_topology(hwcart_comm)
     integer, value :: hwcart_comm
     integer :: hwcart_print_rank_topology
     
     hwcart_print_rank_topology = &
-      hwcart_print_rank_topology_f(hwcart_topo, hwcart_comm)
+      hwcart_print_rank_topology_f(hwcart_comm)
   end function hwcart_print_rank_topology
 
   function hwcart_rank2coord(hwcart_comm, rank, coord_out)
