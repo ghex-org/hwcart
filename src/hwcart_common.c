@@ -235,7 +235,7 @@ int hwcart_create(MPI_Comm mpi_comm,
     HWCART_MPI_CALL( MPI_Comm_size(mpi_comm, &comm_size) );
     if(comm_size != gdim[0]*gdim[1]*gdim[2]) {
         fprintf(stderr, "number of ranks (%d) is different than the specified rank grid size (%d)\n",
-		comm_size, gdim[0]*gdim[1]*gdim[2]);
+                comm_size, gdim[0]*gdim[1]*gdim[2]);
         return -1;
     }
     
@@ -309,20 +309,20 @@ int hwcart2mpicart(MPI_Comm hwcart_comm, MPI_Comm *mpicart_comm_out)
     HWCART_MPI_CALL( MPI_Comm_get_attr(hwcart_comm, topo_attr, &ptopo, &flag) );
     
     if(ptopo->order != HWCartOrderZYX) {
-	
-	// convert rank numbering to MPI_Cart order (ZYX)
-	int coord[3], comm_rank, mpi_rank;
-	HWCART_MPI_CALL( MPI_Comm_rank(hwcart_comm, &comm_rank) );
-	rank2coord(ptopo->dims, comm_rank, ptopo->order, coord);
-	coord2rank(ptopo->dims, ptopo->periodic, coord, HWCartOrderZYX, &mpi_rank);
-	
-	// remap rank ids and create an MPI Cartesian communicator
-	MPI_Comm temp_comm;
-	HWCART_MPI_CALL( MPI_Comm_split(hwcart_comm, 0, mpi_rank, &temp_comm) );
-	HWCART_MPI_CALL( MPI_Cart_create(temp_comm, 3, ptopo->dims, ptopo->periodic, 0, mpicart_comm_out) );
-	HWCART_MPI_CALL( MPI_Comm_free(&temp_comm) );    
+        
+        // convert rank numbering to MPI_Cart order (ZYX)
+        int coord[3], comm_rank, mpi_rank;
+        HWCART_MPI_CALL( MPI_Comm_rank(hwcart_comm, &comm_rank) );
+        rank2coord(ptopo->dims, comm_rank, ptopo->order, coord);
+        coord2rank(ptopo->dims, ptopo->periodic, coord, HWCartOrderZYX, &mpi_rank);
+        
+        // remap rank ids and create an MPI Cartesian communicator
+        MPI_Comm temp_comm;
+        HWCART_MPI_CALL( MPI_Comm_split(hwcart_comm, 0, mpi_rank, &temp_comm) );
+        HWCART_MPI_CALL( MPI_Cart_create(temp_comm, 3, ptopo->dims, ptopo->periodic, 0, mpicart_comm_out) );
+        HWCART_MPI_CALL( MPI_Comm_free(&temp_comm) );    
     } else {
-	HWCART_MPI_CALL( MPI_Cart_create(hwcart_comm, 3, ptopo->dims, ptopo->periodic, 0, mpicart_comm_out) );
+        HWCART_MPI_CALL( MPI_Cart_create(hwcart_comm, 3, ptopo->dims, ptopo->periodic, 0, mpicart_comm_out) );
     }
     return 0;
 }
@@ -443,21 +443,36 @@ int hwcart_print_rank_topology(MPI_Comm comm)
     int *level_id;
     char split_name[256];
 
-    if(!is_hwcart_comm(comm)) {
-        fprintf(stderr, "hwcart_print_rank_topology: comm is not a HWCART communicator.\n");
-        return -1;
-    }
-    
     hwcart_topo_t hwtopo = hwcart_get_topo();
-    
-    int flag;
-    hwcart_cart_topo_t *ptopo = NULL;
-    HWCART_MPI_CALL( MPI_Comm_get_attr(comm, topo_attr, &ptopo, &flag) );
-    
-    int *gdim = ptopo->dims;
-    int nlevels = ptopo->nlevels;
-    hwcart_split_t *domain = ptopo->domain;
-    hwcart_order_t order = ptopo->order;
+    int *gdim = NULL;
+    int nlevels = -1;
+    hwcart_split_t *domain = NULL;
+    hwcart_order_t order = -1;
+
+    if(is_hwcart_comm(comm)) {
+        int flag;
+        hwcart_cart_topo_t *ptopo = NULL;
+        HWCART_MPI_CALL( MPI_Comm_get_attr(comm, topo_attr, &ptopo, &flag) );
+        gdim = ptopo->dims;
+        nlevels = ptopo->nlevels;
+        domain = ptopo->domain;
+        order = ptopo->order;
+    } else {
+        int topo = -1;
+        HWCART_MPI_CALL( MPI_Topo_test(comm, &topo) );
+        if (topo!=MPI_CART){
+            fprintf(stderr, "this communicator is neither a HWCART, nor an MPI Cartesian communicator.");
+            return -1;
+        }
+
+        int periodic[3], coords[3];
+        order = HWCartOrderZYX;
+        nlevels = 1;
+        domain = malloc(sizeof(int)*nlevels);
+        domain[0] = HWCART_MD_NODE;
+        gdim = malloc(sizeof(int)*3);
+        HWCART_MPI_CALL( MPI_Cart_get(comm, 3, gdim, periodic, coords) );
+    }
     
     level_id = calloc(nlevels, sizeof(int));
     for(ii=0; ii<nlevels; ii++){
@@ -503,7 +518,7 @@ int hwcart_print_rank_topology(MPI_Comm comm)
         }
 
         printf("\n");
-        printf("Rank to node mapping\n");
+        printf("Rank to topology mapping\n");
         printf("\n");
 
         for(ii=0; ii<nlevels; ii++){
@@ -516,12 +531,12 @@ int hwcart_print_rank_topology(MPI_Comm comm)
         }
 
         printf("\n");
-        printf("Rank layout in HWCART communicator\n");
+        printf("Rank layout in the Cartesian communicator\n");
         printf("\n");
         hwcart_print_cube(comm, gdim, 0, buff, nlevels+3, order);
 
         printf("\n");
-        printf("MPI_COMM_WORLD layout\n");
+        printf("MPI_COMM_WORLD rank layout\n");
         printf("\n");
         hwcart_print_cube(comm, gdim, 1, buff, nlevels+3, order);
 
@@ -542,6 +557,11 @@ int hwcart_print_rank_topology(MPI_Comm comm)
 
     free(level_id);
     free(sbuff);
+    free(buff);
+    if(!is_hwcart_comm(comm)) {
+        free(domain);
+        free(gdim);
+    }
     
     return 0;
 }
@@ -644,9 +664,9 @@ int hwcart_comm_free_f(int *hwcart_comm)
     if(hwcart_comm){
         MPI_Comm in_comm = MPI_Comm_f2c(*hwcart_comm);
         *hwcart_comm = MPI_Comm_c2f(MPI_COMM_NULL);
-	if(in_comm != MPI_COMM_NULL){
+        if(in_comm != MPI_COMM_NULL){
             HWCART_MPI_CALL( MPI_Comm_free(&in_comm) );
-	}
+        }
     }
     return 0;
 }

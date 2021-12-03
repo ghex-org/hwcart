@@ -24,7 +24,7 @@ typedef enum {
 } hwcart_order_t;
 
 /* 
-   for now:
+   Constraints
    - only 3D cartesian space (ndim=3)
    - domain and topo are arrays of size nlevels*ndim
 */
@@ -44,11 +44,11 @@ int hwcart_comm_free(MPI_Comm *hwcart_comm);
 
 int hwcart2mpicart(MPI_Comm hwcart_comm, MPI_Comm *mpicart_comm_out);
 
-int hwcart_sub(MPI_Comm comm, int rank, int *belongs, MPI_Comm *hwcart_comm_out);
+int hwcart_sub(MPI_Comm hwcart_comm, int rank, int *belongs, MPI_Comm *hwcart_comm_out);
 
 int hwcart_rank2coord(MPI_Comm hwcart_comm, int rank, int *coord_out);
 int hwcart_coord2rank(MPI_Comm hwcart_comm, int *coord, int *rank_out);
 
-int hwcart_print_rank_topology(MPI_Comm comm);
+int hwcart_print_rank_topology(MPI_Comm hwcart_comm);
 
 #endif /* _HWCART_H */

@@ -60,14 +60,14 @@ PROGRAM hwcart_test_f
     block
       logical, dimension(:) :: belongs(3)
       integer :: col_size, plane_size
-      
+
       ! create column communicator
       belongs(:) = (/.false.,.false.,.true./)
       ierr = hwcart_sub(hwcart_comm, hwcart_rank, belongs, hwcart_comm_col)
       call MPI_Comm_size(hwcart_comm_col, col_size, ierr)
       if (col_size /= gdim(3)) then
-         write (*,*) "ERROR: wrong size of the column communicator: ", col_size, "/=", gdim(3)
-         call exit(1)
+        write (*,*) "ERROR: wrong size of the column communicator: ", col_size, "/=", gdim(3)
+        call exit(1)
       end if
 
       ! create plane communicator
@@ -75,19 +75,19 @@ PROGRAM hwcart_test_f
       ierr = hwcart_sub(hwcart_comm, hwcart_rank, belongs, hwcart_comm_plane)
       call MPI_Comm_size(hwcart_comm_plane, plane_size, ierr)
       if (plane_size /= gdim(1)*gdim(2)) then
-         write (*,*) "ERROR: wrong size of the plane communicator: ", plane_size, "/=", gdim(1)*gdim(2)
-         call exit(1)
+        write (*,*) "ERROR: wrong size of the plane communicator: ", plane_size, "/=", gdim(1)*gdim(2)
+        call exit(1)
       end if
-      
+
     end block
-    
+
     call hwcart_comm_free(hwcart_comm_col)
     call hwcart_comm_free(hwcart_comm_plane)
     call hwcart_comm_free(hwcart_comm)
   else
-     call exit(1)
+    call exit(1)
   end if
-  
+
   ierr = hwcart_finalize();
   call MPI_Finalize(ierr);
 END PROGRAM hwcart_test_f
