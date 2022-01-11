@@ -20,6 +20,7 @@ hwloc_obj_type_t hwcart_split_type(hwcart_split_t split_type);
 struct hwcart_topo_struct_t {
     hwloc_topology_t topo;
 };
+static hwcart_topo_t hwtopo = NULL;
 
 
 int load_hwtopo(hwcart_topo_t hwtopo)
@@ -40,7 +41,13 @@ int load_hwtopo(hwcart_topo_t hwtopo)
 }
 
 
-int hwcart_init(hwcart_topo_t *hwtopo_out)
+hwcart_topo_t hwcart_get_topo()
+{
+    return hwtopo;
+}
+
+
+int hwcart_init()
 {
     int res;
     pid_t master_pid;
@@ -50,7 +57,10 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
     MPI_Comm shmem_comm;   
     int rank;
 
-    *hwtopo_out = malloc(sizeof(struct hwcart_topo_struct_t));
+    // already initialized?
+    if(NULL != hwtopo) return 0;
+    
+    hwtopo = malloc(sizeof(struct hwcart_topo_struct_t));
 
     // a single process reads the topo for each compute node
     // the topo is then shared through shared memory
@@ -59,14 +69,14 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
 
     if(rank==0){
 
-        res = load_hwtopo(*hwtopo_out);
+        res = load_hwtopo(hwtopo);
         if(0 != res){
-            free(*hwtopo_out);
-            *hwtopo_out = NULL;
+            free(hwtopo);
+            hwtopo = NULL;
             return res;
         }
 
-        hwloc_shmem_topology_get_length((*hwtopo_out)->topo, &shmem_size, 0);
+        hwloc_shmem_topology_get_length((hwtopo)->topo, &shmem_size, 0);
 
         master_pid = getpid();
         snprintf(shmem_filename, 256, "/dev/shm/hwcart_topo.sm.%i", master_pid);
@@ -97,7 +107,7 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
         munmap(shmem_addr, shmem_size);
 
         // store the topology
-        res = hwloc_shmem_topology_write((*hwtopo_out)->topo, shmem_fd, 0, shmem_addr, shmem_size, 0);
+        res = hwloc_shmem_topology_write((hwtopo)->topo, shmem_fd, 0, shmem_addr, shmem_size, 0);
         if(0 != res){
             fprintf(stderr, "failed to write topology info to shared memory\n");
             close(shmem_fd);
@@ -137,36 +147,36 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
                 fprintf(stderr, "failed to open backing file in shared memory.\n");
 
                 // load the topology
-                res = load_hwtopo(*hwtopo_out);
+                res = load_hwtopo(hwtopo);
                 if(0 != res){
-                    free(*hwtopo_out);
-                    *hwtopo_out = NULL;
+                    free(hwtopo);
+                    hwtopo = NULL;
                     return res;
                 }
                 return 0;
             }
             
-            res = hwloc_shmem_topology_adopt(&(*hwtopo_out)->topo, shmem_fd, 0, shmem_addr, shmem_size, 0);
+            res = hwloc_shmem_topology_adopt(&(hwtopo)->topo, shmem_fd, 0, shmem_addr, shmem_size, 0);
             if(0 != res){
                 // fprintf(stderr, "failed to adopt topology, reading topology directly\n");
                 // load the topology
-                res = load_hwtopo(*hwtopo_out);
+                res = load_hwtopo(hwtopo);
                 if(0 != res){
-                    free(*hwtopo_out);
-                    *hwtopo_out = NULL;
+                    free(hwtopo);
+                    hwtopo = NULL;
                     return res;
                 }
                 return 0;
             }
             close(shmem_fd);
-	    return 0;
+            return 0;
         }
         
         // load the topology
-        res = load_hwtopo(*hwtopo_out);
+        res = load_hwtopo(hwtopo);
         if(0 != res){
-            free(*hwtopo_out);
-            *hwtopo_out = NULL;
+            free(hwtopo);
+            hwtopo = NULL;
             return res;
         }
     }
@@ -174,12 +184,12 @@ int hwcart_init(hwcart_topo_t *hwtopo_out)
 }
 
 
-int  hwcart_topo_free(hwcart_topo_t *hwtopo)
+int hwcart_finalize()
 {
-    if(hwtopo && (*hwtopo)){
-        hwloc_topology_destroy((*hwtopo)->topo);
-        free(*hwtopo);
-        *hwtopo = NULL;
+    if(hwtopo){
+        hwloc_topology_destroy(hwtopo->topo);
+        free(hwtopo);
+        hwtopo = NULL;
     }
     return 0;
 }
@@ -238,8 +248,8 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
         split_type = hwcart_split_type(domain[i]);
         if(split_type == HWLOC_OBJ_TYPE_MAX){
             fprintf(stderr, "unknown memory domain %d, level %d\n", domain[i], i+1);
-	    retval = -1;
-	    goto cleanup;
+            retval = -1;
+            goto cleanup;
         }
 
         // clear the resource mask
@@ -249,7 +259,7 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
         int ncomponents = 1;
 
         for(j=0; j<n; j++){
-	    
+            
             // figure out on which object we reside
             hwloc_obj_t obj = hwloc_get_obj_by_type (hwloctopo, split_type, j);
           
@@ -257,16 +267,16 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
                 char name[256];
                 hwcart_split_type_to_name(domain[i], name);
                 fprintf(stderr, "no objects of type %s found on level %d\n", name, i);
-		retval = -1;
-		goto cleanup;
-	    }
+                retval = -1;
+                goto cleanup;
+            }
             
             if(hwloc_bitmap_isincluded (m_cpuset, obj->cpuset)){
 
                 // include myself on this node
                 hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
                 level_rank_out[i] = j;
-		break;
+                break;
             }
 
             // m_cpuset might be larger than just one node: merge
@@ -277,45 +287,45 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
 
             if(hwloc_bitmap_isequal (m_cpuset, m_obj_cpuset)){
                 
-		// include myself on this node
+                // include myself on this node
                 level_rank_out[i] = j;
-		break;
+                break;
             }
         }
 
-	if(level_rank_out[i] == -1){
-	    fprintf(stderr, "rank %d was not included in any memory domains on level %d\n", comm_rank, i);
-	    retval = -1;
-	    goto cleanup;
-	}
+        if(level_rank_out[i] == -1){
+            fprintf(stderr, "rank %d was not included in any memory domains on level %d\n", comm_rank, i);
+            retval = -1;
+            goto cleanup;
+        }
 
-	// create communicator for ranks sharing the same node on this level
-	HWCART_MPI_CALL( MPI_Comm_split(parent_comm, level_rank_out[i], 0, &level_comm) );
-	HWCART_MPI_CALL( MPI_Comm_rank(level_comm, &level_rank) );
+        // create communicator for ranks sharing the same node on this level
+        HWCART_MPI_CALL( MPI_Comm_split(parent_comm, level_rank_out[i], 0, &level_comm) );
+        HWCART_MPI_CALL( MPI_Comm_rank(level_comm, &level_rank) );
 
-	// make a master-rank communicator: masters from each split comm join
-	nlevel_nodes=-1;
-	if (level_rank != 0){
+        // make a master-rank communicator: masters from each split comm join
+        nlevel_nodes=-1;
+        if (level_rank != 0){
 
-	    // non-masters
-	    HWCART_MPI_CALL( MPI_Comm_split(parent_comm, 0, 0, &master_comm) );
-	} else {
+            // non-masters
+            HWCART_MPI_CALL( MPI_Comm_split(parent_comm, 0, 0, &master_comm) );
+        } else {
 
-	    // masters
-	    HWCART_MPI_CALL( MPI_Comm_split(parent_comm, 1, 0, &master_comm) );
-	    HWCART_MPI_CALL( MPI_Comm_rank(master_comm, level_rank_out+i) );
-	    HWCART_MPI_CALL( MPI_Comm_size(master_comm, &nlevel_nodes) );
-	}
+            // masters
+            HWCART_MPI_CALL( MPI_Comm_split(parent_comm, 1, 0, &master_comm) );
+            HWCART_MPI_CALL( MPI_Comm_rank(master_comm, level_rank_out+i) );
+            HWCART_MPI_CALL( MPI_Comm_size(master_comm, &nlevel_nodes) );
+        }
     
-	// cleanup
-	HWCART_MPI_CALL( MPI_Comm_disconnect(&master_comm) );
+        // cleanup
+        HWCART_MPI_CALL( MPI_Comm_disconnect(&master_comm) );
     
-	// distribute the node id to all split ranks
-	HWCART_MPI_CALL( MPI_Bcast(level_rank_out+i, 1, MPI_INT, 0, level_comm) );
-	HWCART_MPI_CALL( MPI_Bcast(&nlevel_nodes, 1, MPI_INT, 0, level_comm) );
-	HWCART_MPI_CALL( MPI_Comm_disconnect(&parent_comm) );
-	parent_comm = level_comm;
-	
+        // distribute the node id to all split ranks
+        HWCART_MPI_CALL( MPI_Bcast(level_rank_out+i, 1, MPI_INT, 0, level_comm) );
+        HWCART_MPI_CALL( MPI_Bcast(&nlevel_nodes, 1, MPI_INT, 0, level_comm) );
+        HWCART_MPI_CALL( MPI_Comm_disconnect(&parent_comm) );
+        parent_comm = level_comm;
+        
         if (nlevel_nodes != topo[i*3+0]*topo[i*3+1]*topo[i*3+2]){
             
             // those either have to match, or there is no split on this level
@@ -325,12 +335,12 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
                 level_rank_out[i] = 0;
                 continue;
             }
-	    
-	    if(level_rank==0)
-		fprintf(stderr, "ERROR: wrong topology on level %d: expected %d nodes on this level, instead found %d\n",
-			i, topo[i*3+0]*topo[i*3+1]*topo[i*3+2], nlevel_nodes);
-	    retval = -1;
-	    goto cleanup;
+            
+            if(level_rank==0)
+                fprintf(stderr, "ERROR: wrong topology on level %d: expected %d nodes on this level, instead found %d\n",
+                        i, topo[i*3+0]*topo[i*3+1]*topo[i*3+2], nlevel_nodes);
+            retval = -1;
+            goto cleanup;
         }
 
         // create a sub-topology

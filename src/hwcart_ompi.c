@@ -13,16 +13,23 @@ int hwcart_split_type(hwcart_split_t split_type);
 struct hwcart_topo_struct_t {
     int dummy; // warning: struct has no members [-Wpedantic]
 };
+static hwcart_topo_t hwtopo;
 
 
-int hwcart_init(hwcart_topo_t *hwtopo_out)
+hwcart_topo_t hwcart_get_topo()
+{
+    return hwtopo;
+}
+
+
+int hwcart_init()
 {
     *hwtopo_out = NULL;
     return 0;
 }
 
 
-int  hwcart_topo_free(hwcart_topo_t *hwtopo)
+int  hwcart_finalize()
 {
     *hwtopo = NULL;
     return 0;

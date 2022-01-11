@@ -4,7 +4,6 @@ PROGRAM hwcart_test_hwcart2mpicart_f
 
   implicit none
 
-  type(hwcart_topo_t) :: hwcart_topo
   integer :: hwcart_comm, mpicart_comm
   integer :: ierr
 
@@ -18,9 +17,9 @@ PROGRAM hwcart_test_hwcart2mpicart_f
 
   integer, dimension(:,:), target :: topo(3,NLEVELS) = reshape([&
     4, 1, 1, & ! core grid 
-    1, 2, 2, & ! l3cache grid
+    2, 2, 1, & ! l3cache grid
     1, 2, 2, & ! numa grid
-    1, 2, 1, & ! socket grid
+    1, 1, 2, & ! socket grid
     1, 1, 1],& ! node grid
     shape(topo))
 
@@ -28,48 +27,68 @@ PROGRAM hwcart_test_hwcart2mpicart_f
   integer, dimension(:) :: gdim(3)
   logical, dimension(:) :: periodic(3) = [.true.,.true.,.true.]
 
-  integer :: hwcart_rank, mpicart_rank
+  integer :: hwcart_rank, mpicart_rank, comm_rank
   integer, dimension(:) :: hwcart_coord(3), mpicart_coord(3)
 
   ! global rank dimensions
   gdim = product(topo, 2)
 
   call MPI_Init(ierr);
+  call MPI_Comm_rank(MPI_COMM_WORLD, comm_rank, ierr)
 
-  ierr = hwcart_init(hwcart_topo)
+  ierr = hwcart_init()
   if (ierr /= 0) then
     call MPI_Finalize(ierr);
     call exit(1)
   end if
 
-  ierr = hwcart_create(hwcart_topo, MPI_COMM_WORLD, domain, topo, cart_order, hwcart_comm)
+  ! create a basic MPI_Cart communicator
+  call MPI_Cart_create(MPI_COMM_WORLD, 3, gdim, periodic, .true., mpicart_comm, ierr)
+
+  ! you can print the layout of a standard MPI_Cart
+  if(comm_rank==0) then 
+    write (*,*) "--------------------  Original MPI_Cart communicator"
+  end if
+  ierr = hwcart_print_rank_topology(mpicart_comm);
+  call MPI_Comm_free(mpicart_comm, ierr);
+
+  ierr = hwcart_create(MPI_COMM_WORLD, domain, topo, periodic, cart_order, hwcart_comm)
   if (ierr == 0) then
-    ierr = hwcart_print_rank_topology(hwcart_topo, hwcart_comm, domain, topo, cart_order);
+    if(comm_rank==0) then 
+      write (*,*) "--------------------  HWCART communicator"
+    end if
+    ierr = hwcart_print_rank_topology(hwcart_comm);
 
     ! Convert a HWCART communicator to a native MPI_Cart communicator.
     ! Dimension order will be set to MPI order (ZYX). All standard MPI_Cart functions
     ! (MPI_Cart_shift, MPI_Cart_sub, MPI_Cart_rank, etc.) can be used on mpicart_com.
-    ierr = hwcart2mpicart(hwcart_comm, topo, periodic, cart_order, mpicart_comm)
+    ierr = hwcart2mpicart(hwcart_comm, mpicart_comm)
+
+    ! you can print the layout of a standard MPI_Cart
+    if(comm_rank==0) then 
+      write (*,*) "--------------------  Renumbered MPI_Cart communicator"
+    end if
+    ierr = hwcart_print_rank_topology(mpicart_comm);
 
     ! hwcart cartesian coordinates
     call MPI_Comm_rank(hwcart_comm, hwcart_rank, ierr)
-    ierr = hwcart_rank2coord(hwcart_comm, gdim, hwcart_rank, cart_order, hwcart_coord)
-    
+    ierr = hwcart_rank2coord(hwcart_comm, hwcart_rank, hwcart_coord)
+
     ! mpicart cartesian coordinates
     call MPI_Comm_rank(mpicart_comm, mpicart_rank, ierr);
     call MPI_Cart_coords(mpicart_comm, mpicart_rank, 3, mpicart_coord, ierr);
 
     if (any(hwcart_coord /= mpicart_coord)) then
-       write (*,*) "ERROR: inconsistent MPI_Cart and hwcart coordinates"
-       call exit(1)       
+      write (*,*) "ERROR: inconsistent MPI_Cart and hwcart coordinates"
+      call exit(1)       
     end if
 
     call MPI_Comm_free(mpicart_comm, ierr)
     call hwcart_comm_free(hwcart_comm)
-    call hwcart_topo_free(hwcart_topo)
   else
-     call exit(1)
+    call exit(1)
   end if
-  
+
+  ierr = hwcart_finalize();
   call MPI_Finalize(ierr);
 END PROGRAM hwcart_test_hwcart2mpicart_f
