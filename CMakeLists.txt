@@ -64,13 +64,24 @@ install(TARGETS hwcart
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(DIRECTORY include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
 if (HWCART_USE_FORTRAN)
-   install(
-	 FILES
-		${CMAKE_CURRENT_BINARY_DIR}/hwcart_mod.mod
-	 DESTINATION
-	        ${CMAKE_INSTALL_INCLUDEDIR})
+
+    if(CMAKE_Fortran_COMPILER_ID STREQUAL "Cray")
+        install(
+           FILES
+               ${CMAKE_CURRENT_BINARY_DIR}/HWCART_MOD.mod
+           DESTINATION
+               ${CMAKE_INSTALL_INCLUDEDIR})
+    else()
+        install(
+           FILES
+               ${CMAKE_CURRENT_BINARY_DIR}/hwcart_mod.mod
+           DESTINATION
+               ${CMAKE_INSTALL_INCLUDEDIR})
+    endif()
 endif (HWCART_USE_FORTRAN)
+
 install(EXPORT HWCART-targets
   FILE HWCART-targets.cmake
   NAMESPACE HWCART::
