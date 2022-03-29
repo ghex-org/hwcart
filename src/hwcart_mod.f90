@@ -102,6 +102,7 @@ MODULE hwcart_mod
        integer, value :: rank
        integer, value :: cart_order
        type(c_ptr), value :: coord_out
+       integer :: hwcart_rank2coord_f
      end function hwcart_rank2coord_f
      
      function hwcart_coord2rank_f(hwcart_comm, dims, periodic, coord, cart_order, rank_out) bind(C)
@@ -112,6 +113,7 @@ MODULE hwcart_mod
        type(c_ptr), value :: coord
        integer, value :: cart_order
        integer :: rank_out
+       integer :: hwcart_coord2rank_f
      end function hwcart_coord2rank_f
      
   end interface
