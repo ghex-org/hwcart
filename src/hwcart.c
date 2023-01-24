@@ -232,7 +232,7 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
     
     hwloc_bitmap_t m_obj_cpuset = hwloc_bitmap_alloc();
     hwloc_bitmap_t m_cpuset = hwloc_bitmap_alloc();
-    hwloc_get_cpubind(hwloctopo, m_cpuset, 0);
+    hwloc_get_cpubind(hwloctopo, m_cpuset, HWLOC_CPUBIND_THREAD);
 
     for(i=level-1; i>=0; i--){
         split_type = hwcart_split_type(domain[i]);
@@ -404,7 +404,7 @@ int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, hwcart_split_t in_s
     hwloc_bitmap_t m_obj_cpuset = hwloc_bitmap_alloc();
     hwloc_bitmap_t m_cpuset = hwloc_bitmap_alloc();
     hwloc_obj_t obj;
-    hwloc_get_cpubind(*phwloctopo, m_cpuset, 0);
+    hwloc_get_cpubind(*phwloctopo, m_cpuset, HWLOC_CPUBIND_THREAD);
 
     int n = hwloc_get_nbobjs_by_type(*phwloctopo, split_type);
     int ncomponents = 0;
