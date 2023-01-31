@@ -270,12 +270,12 @@ int hwcart_topology(hwcart_topo_t hwtopo, MPI_Comm comm, int nlevels, hwcart_spl
             }
 
             // m_cpuset might be larger than just one node: merge
-            if(hwloc_bitmap_isincluded (obj->cpuset, m_cpuset)){
+            if(hwloc_bitmap_intersects (obj->cpuset, m_cpuset)){
                 ncomponents++;
                 hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
             }
 
-            if(hwloc_bitmap_isequal (m_cpuset, m_obj_cpuset)){
+            if(hwloc_bitmap_isincluded (m_cpuset, m_obj_cpuset)){
                 
 		// include myself on this node
                 level_rank_out[i] = j;
@@ -429,7 +429,7 @@ int hwcart_get_noderank(hwcart_topo_t hwtopo, MPI_Comm comm, hwcart_split_t in_s
         }
 
         // m_cpuset might be larger than just one node: merge
-        if(hwloc_bitmap_isincluded (obj->cpuset, m_cpuset)){
+        if(hwloc_bitmap_intersects (obj->cpuset, m_cpuset)){
             ncomponents++;
             hwloc_bitmap_or (m_obj_cpuset, m_obj_cpuset, obj->cpuset);
         }
